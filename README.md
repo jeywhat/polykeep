@@ -12,6 +12,9 @@ automatisé et la visualisation.
 ## ✨ Fonctionnalités
 
 - **Scan & indexation** du dossier `/storage` (fichiers `.stl` et `.lys`).
+- **Navigation par arborescence** : rail de dossiers pliable à gauche,
+  fil d'Ariane cliquable, grille groupée par sous-dossier. Parfait pour les
+  structures profondes et récursives.
 - **Visionneuse 3D** Three.js (React Three Fiber) : rotation, zoom, auto-centrage
   des `.stl`. Pour les `.lys`, extraction de la vignette embarquée (aperçu image).
 - **Moteur de tri intelligent** :
@@ -41,6 +44,37 @@ frontend (servi en statique par FastAPI). Idéal pour Unraid.
 
 ---
 
+## 🖥️ Interface
+
+L'interface est organisée en trois colonnes :
+
+```
+┌──────────┬─────────────────────────────────┬──────────────┐
+│ Dossiers │  Accueil › Imprimantes › Voron    │ Tri proposé  │
+│ (arbre   │  📁 Crêtes (8)                    │              │
+│  pliable) │   [carte] [carte] [carte] …      │  suggestions │
+│          │  📁 Mods (4)                      │              │
+│          │   [carte] [carte] …               │              │
+└──────────┴─────────────────────────────────┴──────────────┘
+```
+
+- **Rail de dossiers** (gauche) : arbre de navigation pliable/déplié avec
+  compteurs de fichiers. L'état d'expansion est conservé entre les sessions
+  (`localStorage`). Un clic filtre la grille sur ce dossier et toute sa
+  sous-arborescence.
+- **Fil d'Ariane** : chemin cliquable au-dessus de la grille pour remonter
+  rapidement à un dossier parent.
+- **Grille groupée** : les fichiers sont automatiquement regroupés par
+  sous-dossier direct avec des en-têtes `📁 Nom (count)`. Chaque carte affiche
+  le chemin relatif du fichier pour le repérage dans les vues « tous ».
+- **Panneau de tri** (droite) : suggestions de regroupement, doublons et
+  déplacements, avec validation une par une.
+
+Les filtres (recherche, statut, format, tags) s'appliquent **en plus** du
+dossier sélectionné.
+
+---
+
 ## 📁 Structure du projet
 
 ```
@@ -52,16 +86,24 @@ frontend (servi en statique par FastAPI). Idéal pour Unraid.
 │   │   ├── database.py          # engine SQLAlchemy + session
 │   │   ├── models.py            # File, Tag, FileTag, Suggestion, Setting
 │   │   ├── schemas.py           # Pydantic v2
-│   │   ├── routers/             # scan, files, sort, preview
+│   │   ├── routers/             # scan, files (+ /folders), sort, preview
 │   │   └── services/            # scanner, hasher, tagger, grouper,
 │   │                            #   lys_parser, sorter, paths
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx              # Composant racine
-│   │   ├── components/          # FileGrid, Toolbar, StlViewer,
-│   │   │                        #   PreviewModal, SortPanel, FileCard
+│   │   ├── App.jsx              # Composant racine (état folder, filtres)
+│   │   ├── components/
+│   │   │   ├── FolderTree.jsx   # Arbre de navigation pliable
+│   │   │   ├── Breadcrumb.jsx   # Fil d'Ariane cliquable
+│   │   │   ├── FileGrid.jsx     # Grille groupée par sous-dossier
+│   │   │   ├── FileCard.jsx     # Carte (thumb, nom, chemin, tags)
+│   │   │   ├── Toolbar.jsx      # Barre de filtres (recherche, statut…)
+│   │   │   ├── PreviewModal.jsx # Modal 3D + infos + actions
+│   │   │   ├── SortPanel.jsx    # Suggestions de tri
+│   │   │   └── StlViewer.jsx   # Visionneuse Three.js
 │   │   ├── api/client.js        # client API (fetch)
+│   │   ├── utils.js             # helpers (groupage, arbre, breadcrumb)
 │   │   └── styles.css           # thème sombre
 │   └── vite.config.js           # proxy dev → :8000
 ├── Dockerfile                   # build multi-stage (root context)
@@ -92,9 +134,10 @@ docker compose up -d
 
 ### 4. Premier scan
 
-Cliquez sur **« ⏻ Scanner »**. L'app indexe vos fichiers, calcule les hashes
-(STL), extrait les vignettes (LYS) et génère les suggestions de tri.
-La prévisualisation 3D s'ouvre au clic sur une carte.
+Cliquez sur **« ⏻ Scanner »**. L'app indexe vos fichiers récursivement dans
+`/storage`, calcule les hashes (STL), extrait les vignettes (LYS) et génère les
+suggestions de tri. Naviguez dans l'arbre de dossiers pour explorer vos
+fichiers par emplacement.
 
 ---
 
@@ -175,7 +218,8 @@ Documentation interactive : **http://IP:8000/docs** (Swagger UI).
 | ------- | ----- | ----------- |
 | `GET`  | `/api/health` | État + nombre de fichiers |
 | `POST` | `/api/scan` | Scan + recalcul des suggestions |
-| `GET`  | `/api/files` | Liste filtrée (`?status=&tag=&q=&ext=&page=`) |
+| `GET`  | `/api/files` | Liste filtrée (`?status=&tag=&q=&ext=&folder=&page=`) |
+| `GET`  | `/api/folders` | Arborescence des dossiers (path + count) |
 | `GET`  | `/api/files/{id}` | Détail d'un fichier |
 | `POST` | `/api/files/{id}/move` | Déplacer (`{"target_dir": "Trié/…"}`) |
 | `POST` | `/api/files/{id}/delete` | Mettre à la corbeille |
@@ -185,6 +229,10 @@ Documentation interactive : **http://IP:8000/docs** (Swagger UI).
 | `POST` | `/api/suggestions/recompute` | Recalculer |
 | `POST` | `/api/suggestions/{id}/apply` | Appliquer |
 | `POST` | `/api/suggestions/{id}/reject` | Rejeter |
+
+Le paramètre `?folder=Imprimantes/Voron` filtre les fichiers de ce dossier **et**
+de toute sa sous-arborescence de manière récursive. Omettre le paramètre
+affiche tout.
 
 ---
 
@@ -241,6 +289,11 @@ vers le backend (`:8000`). À la fin du dev, `npm run build` régénère
   spécification publique**. L'app tente d'extraire la **vignette** (le
   conteneur est souvent une archive ZIP). La **géométrie 3D n'est pas lue** :
   pour la prévisualisation 3D interactive, seul le **STL** est supporté.
+- **Arborescences profondes** : le scan explore récursivement `/storage`
+  (système `rglob`). Les dossiers cachés (`.trash`, `__pycache__`, etc.) sont
+  ignorés automatiquement. L'arbre de navigation regroupe les fichiers par
+  sous-dossier pour garder une vue claire même avec plusieurs niveaux
+  d'imbrication.
 - **Performance** : le hash SHA-256 est calculé en streaming (1 Mo/bloc) et
   seulement pour les fichiers de même taille. Les gros catalogues restent
   jouables ; un scan peut être relancé sans doublon de travail (les fichiers
