@@ -1,0 +1,22 @@
+services:
+  3d-file-sorter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # On Unraid you can also pull a prebuilt image and skip the build:
+    # image: 3d-file-sorter:latest
+    container_name: 3d-file-sorter
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persisted SQLite DB + settings + extracted thumbnails.
+      - /mnt/user/appdata/3d-file-sorter/config:/config
+      # Your 3D files. Point this at the real share that holds them.
+      - /mnt/user/la_main_dans_le_sac:/storage:rw
+    environment:
+      # Optional tunables (defaults shown). Override freely.
+      - T3D_SIMILARITY_THRESHOLD=0.6
+      # - T3D_SORTED_SUBDIR=Trié
+      # - T3D_ARCHIVED_SUBDIR=Archivé
+      # - T3D_AUTO_KEYWORDS=warhammer,articulated,supported,...
