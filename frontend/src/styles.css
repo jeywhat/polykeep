@@ -139,6 +139,107 @@ select:focus {
   overflow: hidden;
 }
 
+/* ---------- Folder rail (left) ---------- */
+.folder-rail {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.rail-header {
+  padding: 14px 16px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-elev);
+  z-index: 1;
+}
+
+.folder-tree {
+  padding: 6px 0 16px;
+  font-size: 13px;
+}
+
+.ft-node {
+  /* wrapper for a folder + its children */
+}
+
+.ft-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 0;
+  cursor: pointer;
+  color: var(--text);
+  user-select: none;
+  border-left: 2px solid transparent;
+}
+
+.ft-item:hover {
+  background: var(--bg-elev-2);
+}
+
+.ft-item.active {
+  background: var(--bg-elev-2);
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+
+.ft-item.root {
+  padding-left: 8px;
+}
+
+.ft-twisty {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 0 2px;
+  width: 16px;
+  text-align: center;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.ft-twisty:hover {
+  color: var(--text);
+}
+
+.ft-select {
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.ft-label {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ft-count {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+/* ---------- Content (center) ---------- */
 .content {
   flex: 1;
   overflow-y: auto;
@@ -187,6 +288,86 @@ select:focus {
   gap: 14px;
 }
 
+/* ---------- Breadcrumb ---------- */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 6px 2px 14px;
+  font-size: 13px;
+}
+
+.crumb-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.crumb-sep {
+  color: var(--text-dim);
+  margin: 0 6px;
+}
+
+button.crumb {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 2px 4px;
+  font-size: 13px;
+}
+
+button.crumb:hover {
+  color: var(--accent);
+  background: none;
+}
+
+.crumb.current {
+  color: var(--text);
+  font-weight: 600;
+  padding: 2px 4px;
+}
+
+/* ---------- File groups ---------- */
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.file-group .grid {
+  /* inherits .grid above */
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.group-header .group-icon {
+  font-size: 14px;
+}
+
+.group-header .group-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-header .group-count {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-dim);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1px 7px;
+}
+
 .card {
   background: var(--bg-elev);
   border: 1px solid var(--border);
@@ -232,6 +413,16 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 4px;
+}
+
+.card .card-dir {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 .card .meta {

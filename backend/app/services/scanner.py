@@ -81,10 +81,15 @@ def scan_storage(session: Session) -> dict:
         existing = session.query(File).filter_by(rel_path=rel).first()
 
         if existing is None:
+            # relative_to(root) yields "." for files at the storage root;
+            # normalise to "" so the whole app treats "" as "root" consistently.
+            parent_dir = path.parent.relative_to(root).as_posix()
+            if parent_dir == ".":
+                parent_dir = ""
             file_obj = File(
                 rel_path=rel,
                 name=path.name,
-                parent_dir=path.parent.relative_to(root).as_posix(),
+                parent_dir=parent_dir,
                 ext=_ext(path),
                 size=stat.st_size,
                 status="unsorted",

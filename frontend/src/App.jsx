@@ -4,11 +4,14 @@ import Toolbar from "./components/Toolbar.jsx";
 import FileGrid from "./components/FileGrid.jsx";
 import PreviewModal from "./components/PreviewModal.jsx";
 import SortPanel from "./components/SortPanel.jsx";
+import FolderTree from "./components/FolderTree.jsx";
+import Breadcrumb from "./components/Breadcrumb.jsx";
 
 export default function App() {
   const [files, setFiles] = useState([]);
   const [total, setTotal] = useState(0);
   const [tags, setTags] = useState([]);
+  const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
 
@@ -17,6 +20,7 @@ export default function App() {
   const [status, setStatus] = useState("");
   const [ext, setExt] = useState("");
   const [activeTag, setActiveTag] = useState("");
+  const [folder, setFolder] = useState(""); // "" = root (everything)
 
   // UI state
   const [selected, setSelected] = useState(null);
@@ -31,7 +35,15 @@ export default function App() {
   const loadFiles = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.listFiles({ q: query, status, ext, tag: activeTag });
+      // Load the whole folder (recursively) — page_size is bumped server-side.
+      const data = await api.listFiles({
+        q: query,
+        status,
+        ext,
+        tag: activeTag,
+        folder,
+        page_size: 5000,
+      });
       setFiles(data.items);
       setTotal(data.total);
     } catch (e) {
@@ -39,7 +51,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [query, status, ext, activeTag, notify]);
+  }, [query, status, ext, activeTag, folder, notify]);
 
   const loadTags = useCallback(async () => {
     try {
@@ -49,13 +61,22 @@ export default function App() {
     }
   }, []);
 
+  const loadFolders = useCallback(async () => {
+    try {
+      setFolders(await api.listFolders());
+    } catch {
+      /* tree is non-critical */
+    }
+  }, []);
+
   useEffect(() => {
     loadFiles();
   }, [loadFiles]);
 
   useEffect(() => {
     loadTags();
-  }, [loadTags, refreshKey]);
+    loadFolders();
+  }, [loadTags, loadFolders, refreshKey]);
 
   // Debounce the search box.
   useEffect(() => {
@@ -75,6 +96,7 @@ export default function App() {
       setRefreshKey((k) => k + 1);
       await loadFiles();
       await loadTags();
+      await loadFolders();
     } catch (e) {
       notify(e.message, "error");
     } finally {
@@ -89,6 +111,7 @@ export default function App() {
     );
     setRefreshKey((k) => k + 1);
     loadTags();
+    loadFolders();
   }
 
   return (
@@ -100,7 +123,13 @@ export default function App() {
       </div>
 
       <div className="main">
+        <aside className="folder-rail">
+          <div className="rail-header">Dossiers</div>
+          <FolderTree folders={folders} current={folder} onSelect={setFolder} />
+        </aside>
+
         <div className="content">
+          <Breadcrumb folder={folder} onNavigate={setFolder} />
           <Toolbar
             query={query}
             setQuery={setQuery}
@@ -115,7 +144,7 @@ export default function App() {
             onScan={handleScan}
             scanning={scanning}
           />
-          <FileGrid files={files} onSelect={setSelected} loading={loading} />
+          <FileGrid files={files} folder={folder} onSelect={setSelected} loading={loading} />
         </div>
 
         <div className="sidebar">
@@ -125,6 +154,7 @@ export default function App() {
               setRefreshKey((k) => k + 1);
               loadFiles();
               loadTags();
+              loadFolders();
             }}
             refreshKey={refreshKey}
           />

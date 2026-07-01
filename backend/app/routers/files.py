@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import File, FileTag, Tag
-from ..schemas import FileListOut, FileOut, MoveRequest, TagRequest
+from ..schemas import FileListOut, FileOut, FolderOut, MoveRequest, TagRequest
 from ..services.paths import safe_join
 from ..services.sorter import move_file, move_to_trash
 
@@ -29,8 +29,9 @@ def list_files(
     tag: str | None = None,
     ext: str | None = None,
     q: str | None = None,
+    folder: str | None = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(60, ge=1, le=500),
+    page_size: int = Query(60, ge=1, le=5000),
     db: Session = Depends(get_db),
 ):
     query = db.query(File)
@@ -45,9 +46,19 @@ def list_files(
         query = query.filter(
             or_(File.name.ilike(like), File.parent_dir.ilike(like))
         )
+    if folder:
+        # Recursive: files directly in `folder` OR anywhere beneath it.
+        # `parent_dir` is POSIX-style relative to /storage ("" at root).
+        # Bound parameters → safe against injection / LIKE wildcards in paths.
+        query = query.filter(
+            or_(
+                File.parent_dir == folder,
+                File.parent_dir.like(folder.replace("\\", "/") + "/%"),
+            )
+        )
     total = query.count()
     items = (
-        query.order_by(File.name.asc())
+        query.order_by(File.parent_dir.asc(), File.name.asc())
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()
@@ -58,6 +69,22 @@ def list_files(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/folders", response_model=list[FolderOut])
+def list_folders(db: Session = Depends(get_db)):
+    """Distinct ``parent_dir`` values with their direct file counts.
+
+    Used by the frontend to build the navigation tree. Only non-deleted files
+    are counted so the tree reflects what the user can actually act on.
+    """
+    rows = (
+        db.query(File.parent_dir, func.count(File.id))
+        .filter(File.status != "deleted")
+        .group_by(File.parent_dir)
+        .all()
+    )
+    return [FolderOut(path=path or "", count=count) for path, count in rows]
 
 
 @router.get("/files/{file_id}", response_model=FileOut)

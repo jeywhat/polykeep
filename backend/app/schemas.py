@@ -55,6 +55,12 @@ class FileListOut(BaseModel):
     page_size: int
 
 
+class FolderOut(BaseModel):
+    """A distinct ``parent_dir`` with the number of files it (directly) holds."""
+    path: str
+    count: int
+
+
 class ScanResultOut(BaseModel):
     scanned: int
     added: int

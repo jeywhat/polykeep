@@ -40,6 +40,8 @@ export const api = {
 
   getFile: (id) => request(`/files/${id}`),
 
+  listFolders: () => request(`/folders`),
+
   moveFile: (id, targetDir) =>
     request(`/files/${id}/move`, { method: "POST", body: { target_dir: targetDir } }),
 

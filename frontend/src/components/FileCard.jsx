@@ -1,8 +1,9 @@
-import { formatSize, statusLabel } from "../utils.js";
+import { formatSize, statusLabel, relativeDirLabel } from "../utils.js";
 import { api } from "../api/client.js";
 
-export default function FileCard({ file, onClick }) {
+export default function FileCard({ file, folder, onClick }) {
   const isLys = file.ext === "lys";
+  const relDir = relativeDirLabel(file.parent_dir, folder);
   return (
     <div className="card" onClick={() => onClick(file)}>
       <div className="thumb">
@@ -17,6 +18,11 @@ export default function FileCard({ file, onClick }) {
       <div className="name" title={file.name}>
         {file.name}
       </div>
+      {relDir && (
+        <div className="card-dir" title={file.parent_dir}>
+          {relDir}
+        </div>
+      )}
       <div className="meta">
         <span>
           <span className={`status-dot status-${file.status}`} />

@@ -91,9 +91,9 @@ def _detect_duplicates(session: Session, files: list[File]) -> int:
 def _detect_groups(session: Session, files: list[File]) -> int:
     """Propose grouping isolated files that share a name pattern."""
     count = 0
-    # Only consider files sitting directly in /storage (loose) OR whose parent
-    # is the root — those benefit most from being grouped into a folder.
-    loose = [f for f in files if f.parent_dir in ("", ".")]
+    # Only consider files sitting directly in /storage (loose) — those benefit
+    # most from being grouped into a folder.
+    loose = [f for f in files if f.parent_dir == ""]
 
     # Strategy 1: common prefix token.
     names = {f.id: f.name for f in loose}
@@ -213,7 +213,8 @@ def move_file(session: Session, f: File, target_dir: Path) -> None:
             i += 1
     shutil.move(str(src), str(dst))
     f.rel_path = to_rel(dst)
-    f.parent_dir = dst.parent.relative_to(storage_root()).as_posix()
+    parent_dir = dst.parent.relative_to(storage_root()).as_posix()
+    f.parent_dir = "" if parent_dir == "." else parent_dir
     f.status = "sorted"
 
 
