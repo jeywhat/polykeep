@@ -1,4 +1,4 @@
-# ⬢ 3D File Sorter
+# ⬢ PolyKeep
 
 Organiseur de fichiers 3D auto-hébergé pour **Unraid**. Scanne, prévisualise et
 trie vos fichiers `.stl` et `.lys` avec un moteur de tri **sécurisé** (rien
@@ -107,18 +107,18 @@ La prévisualisation 3D s'ouvre au clic sur une carte.
 ### Option A — Via Community Applications / Compose Manager (recommandé)
 
 1. **Préparez vos partages** dans l'Unraid WebUI (`Main` → `Share`) :
-   - `appdata/3d-file-sorter/config` (existe déjà si vous utilisez appdata)
+   - `appdata/polykeep/config` (existe déjà si vous utilisez appdata)
    - Le partage contenant vos fichiers 3D, ex. `la_main_dans_le_sac`.
 
 2. **Installez Compose Manager** :
    - `APPS` → cherchez *Compose* → installez *Compose.Manager*.
 
 3. **Ajoutez le `docker-compose.yml`** :
-   - Ouvrez Compose Manager → *New Stack* → nommez-la `3d-file-sorter`.
+   - Ouvrez Compose Manager → *New Stack* → nommez-la `polykeep`.
    - Collez le contenu de `docker-compose.yml` en **adaptant les chemins** :
      ```yaml
      volumes:
-       - /mnt/user/appdata/3d-file-sorter/config:/config
+       - /mnt/user/appdata/polykeep/config:/config
        - /mnt/user/la_main_dans_le_sac:/storage:rw
      ```
    - Cliquez *Deploy* (Compose build l'image puis démarre).
@@ -127,13 +127,13 @@ La prévisualisation 3D s'ouvre au clic sur une carte.
 
 1. `Docker` → **Add container**.
 2. Configurez :
-   - **Repository** : image construite (`3d-file-sorter:latest`) ou build via CLI.
+   - **Repository** : image construite (`polykeep:latest`) ou build via CLI.
    - **Network type** : `Bridge`.
    - **Port** : `8000` (hôte) → `8000` (conteneur).
    - **Paths / Volumes** :
      | Conteneur | Hôte (exemple) |
      | --------- | ------------------ |
-     | `/config` | `/mnt/user/appdata/3d-file-sorter/config` |
+     | `/config` | `/mnt/user/appdata/polykeep/config` |
      | `/storage`| `/mnt/user/la_main_dans_le_sac` |
    - (Optionnel) **Variables** : voir *Configuration* ci-dessous.
 3. **Apply**, puis ouvrez `http://IP:8000`.

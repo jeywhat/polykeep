@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# 3D File Sorter — single-container image for Unraid.
+# PolyKeep — single-container image for Unraid.
 #
 # Stage 1 builds the React frontend, stage 2 installs the Python backend and
 # serves the built frontend as static files on the same port (8000).

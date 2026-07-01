@@ -17,7 +17,7 @@ from .config import settings
 from .database import get_db, init_db
 from .routers import files, preview, scan, sort
 
-app = FastAPI(title="3D File Sorter", version="1.0.0")
+app = FastAPI(title="PolyKeep", version="1.0.0")
 
 # Permissive CORS — local dev Vite runs on :5173.
 app.add_middleware(
@@ -66,7 +66,7 @@ def root():
         return FileResponse(index)
     return JSONResponse(
         {
-            "name": "3D File Sorter API",
+            "name": "PolyKeep API",
             "note": "Frontend not built yet. Run the API directly or build the "
             "frontend and copy it to backend/static/.",
             "docs": "/docs",

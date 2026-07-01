@@ -94,7 +94,7 @@ export default function App() {
   return (
     <div className="app">
       <div className="topbar">
-        <span className="brand">⬢ 3D File Sorter</span>
+        <span className="brand">⬢ PolyKeep</span>
         <span className="spacer" />
         <span className="count">{total} fichiers indexés</span>
       </div>
