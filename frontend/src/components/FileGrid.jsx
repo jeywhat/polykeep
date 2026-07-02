@@ -45,6 +45,11 @@ export default function FileGrid({
     if (file) onDropFile?.(file, targetPath);
   }
 
+  function handleFolderDragLeave(e) {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setDropTarget(null);
+  }
+
   return (
     <div className="groups">
       {groups.map((g) => {
@@ -72,13 +77,18 @@ export default function FileGrid({
             </div>
           </section>
         ) : (
-          <section key={g.key} className="file-group">
+          <section
+            key={g.key}
+            className={`file-group folder-drop-zone ${draggingFile ? "can-drop" : ""} ${
+              dropTarget === targetPath ? "drop-target" : ""
+            }`}
+            title={`Déplacer vers ${targetPath}`}
+            onDragOver={(e) => allowFolderDrop(e, targetPath)}
+            onDragLeave={handleFolderDragLeave}
+            onDrop={(e) => handleFolderDrop(e, targetPath)}
+          >
             <h3
-              className={`group-header folder-drop ${dropTarget === targetPath ? "drop-target" : ""}`}
-              title={`Déplacer vers ${targetPath}`}
-              onDragOver={(e) => allowFolderDrop(e, targetPath)}
-              onDragLeave={() => setDropTarget(null)}
-              onDrop={(e) => handleFolderDrop(e, targetPath)}
+              className="group-header"
             >
               <span className="group-icon">📁</span>
               <span className="group-name">{g.label}</span>

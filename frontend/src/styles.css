@@ -365,6 +365,27 @@ button.crumb:hover {
   /* inherits .grid above */
 }
 
+.file-group.folder-drop-zone {
+  border: 1px dashed transparent;
+  border-radius: var(--radius);
+  padding: 10px;
+  margin: -10px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.file-group.folder-drop-zone.can-drop {
+  border-color: var(--border);
+}
+
+.file-group.folder-drop-zone.drop-target {
+  background: rgba(255, 140, 42, 0.08);
+  border-color: var(--accent);
+}
+
+.file-group.folder-drop-zone.drop-target .group-header {
+  color: var(--accent);
+}
+
 .group-header {
   display: flex;
   align-items: center;
@@ -373,21 +394,6 @@ button.crumb:hover {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
-}
-
-.group-header.folder-drop {
-  width: fit-content;
-  max-width: 100%;
-  padding: 5px 8px;
-  margin-left: -8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-}
-
-.group-header.folder-drop.drop-target {
-  background: rgba(255, 140, 42, 0.16);
-  border-color: var(--accent);
-  color: var(--accent);
 }
 
 .group-header .group-icon {
