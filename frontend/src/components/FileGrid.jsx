@@ -1,14 +1,19 @@
 import FileCard from "./FileCard.jsx";
 import { groupBySubfolder } from "../utils.js";
+import { useState } from "react";
 
 export default function FileGrid({
   files,
   folder,
   onSelect,
+  draggingFile,
   onDragStart,
   onDragEnd,
+  onDropFile,
   loading,
 }) {
+  const [dropTarget, setDropTarget] = useState(null);
+
   if (loading) return <div className="loading">Chargement…</div>;
   if (!files?.length)
     return (
@@ -20,10 +25,31 @@ export default function FileGrid({
 
   const groups = groupBySubfolder(files, folder);
 
+  function folderPathForGroup(label) {
+    return folder ? `${folder}/${label}` : label;
+  }
+
+  function allowFolderDrop(e, targetPath) {
+    if (!draggingFile) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    setDropTarget(targetPath);
+  }
+
+  function handleFolderDrop(e, targetPath) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTarget(null);
+    const file = readDraggedFile(e, draggingFile);
+    if (file) onDropFile?.(file, targetPath);
+  }
+
   return (
     <div className="groups">
-      {groups.map((g) =>
-        g.kind === "root" ? (
+      {groups.map((g) => {
+        const targetPath = g.kind === "folder" ? folderPathForGroup(g.label) : "";
+        return g.kind === "root" ? (
           <section key={g.key} className="file-group">
             {g.label && (
               <h3 className="group-header">
@@ -47,7 +73,13 @@ export default function FileGrid({
           </section>
         ) : (
           <section key={g.key} className="file-group">
-            <h3 className="group-header" title={`${folder ? folder + "/" : ""}${g.label}`}>
+            <h3
+              className={`group-header folder-drop ${dropTarget === targetPath ? "drop-target" : ""}`}
+              title={`Déplacer vers ${targetPath}`}
+              onDragOver={(e) => allowFolderDrop(e, targetPath)}
+              onDragLeave={() => setDropTarget(null)}
+              onDrop={(e) => handleFolderDrop(e, targetPath)}
+            >
               <span className="group-icon">📁</span>
               <span className="group-name">{g.label}</span>
               <span className="group-count">{g.files.length}</span>
@@ -65,8 +97,18 @@ export default function FileGrid({
               ))}
             </div>
           </section>
-        )
-      )}
+        );
+      })}
     </div>
   );
+}
+
+function readDraggedFile(e, fallback) {
+  const payload = e.dataTransfer.getData("application/x-polykeep-file");
+  if (!payload) return fallback;
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return fallback;
+  }
 }

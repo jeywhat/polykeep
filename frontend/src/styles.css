@@ -375,6 +375,21 @@ button.crumb:hover {
   color: var(--text);
 }
 
+.group-header.folder-drop {
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 8px;
+  margin-left: -8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+}
+
+.group-header.folder-drop.drop-target {
+  background: rgba(255, 140, 42, 0.16);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .group-header .group-icon {
   font-size: 14px;
 }

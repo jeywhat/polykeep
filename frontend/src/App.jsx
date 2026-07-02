@@ -193,8 +193,10 @@ export default function App() {
             files={files}
             folder={folder}
             onSelect={setSelected}
+            draggingFile={draggingFile}
             onDragStart={setDraggingFile}
             onDragEnd={() => setDraggingFile(null)}
+            onDropFile={handleDropMove}
             loading={loading}
           />
         </div>
