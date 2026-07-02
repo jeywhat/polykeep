@@ -203,6 +203,7 @@ Préfixe `T3D_`. Toutes sont optionnelles (valeurs par défaut indiquées).
 | `T3D_CONFIG_DIR` | `/config` | Emplacement de la BDD |
 | `T3D_STORAGE_DIR` | `/storage` | Dossier racine des fichiers |
 | `T3D_SIMILARITY_THRESHOLD` | `0.6` | Seuil de similarité des noms (0–1) |
+| `T3D_SCAN_WORKERS` | `0` | Workers pour hash/vignettes (`0` = auto, `1` = séquentiel) |
 | `T3D_SORTED_SUBDIR` | `Trié` | Sous-dossier pour les fichiers triés |
 | `T3D_ARCHIVED_SUBDIR` | `Archivé` | Sous-dossier d'archivage |
 | `T3D_TRASH_SUBDIR` | `.trash` | Dossier corbeille (relatif à /storage) |

@@ -1,7 +1,14 @@
 import FileCard from "./FileCard.jsx";
 import { groupBySubfolder } from "../utils.js";
 
-export default function FileGrid({ files, folder, onSelect, loading }) {
+export default function FileGrid({
+  files,
+  folder,
+  onSelect,
+  onDragStart,
+  onDragEnd,
+  loading,
+}) {
   if (loading) return <div className="loading">Chargement…</div>;
   if (!files?.length)
     return (
@@ -27,7 +34,14 @@ export default function FileGrid({ files, folder, onSelect, loading }) {
             )}
             <div className="grid">
               {g.files.map((f) => (
-                <FileCard key={f.id} file={f} folder={folder} onClick={onSelect} />
+                <FileCard
+                  key={f.id}
+                  file={f}
+                  folder={folder}
+                  onClick={onSelect}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
+                />
               ))}
             </div>
           </section>
@@ -40,7 +54,14 @@ export default function FileGrid({ files, folder, onSelect, loading }) {
             </h3>
             <div className="grid">
               {g.files.map((f) => (
-                <FileCard key={f.id} file={f} folder={folder} onClick={onSelect} />
+                <FileCard
+                  key={f.id}
+                  file={f}
+                  folder={folder}
+                  onClick={onSelect}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
+                />
               ))}
             </div>
           </section>

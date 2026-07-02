@@ -187,6 +187,13 @@ select:focus {
   background: var(--bg-elev-2);
 }
 
+.ft-item.drop-target,
+.ft-new-folder.drop-target {
+  background: rgba(255, 140, 42, 0.16);
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+
 .ft-item.active {
   background: var(--bg-elev-2);
   border-left-color: var(--accent);
@@ -237,6 +244,26 @@ select:focus {
   border-radius: 8px;
   padding: 1px 6px;
   flex-shrink: 0;
+}
+
+.ft-new-folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - 16px);
+  margin: 4px 8px 8px;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  text-align: left;
+}
+
+.ft-new-folder:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 140, 42, 0.08);
 }
 
 /* ---------- Content (center) ---------- */
@@ -381,6 +408,12 @@ button.crumb:hover {
 .card:hover {
   border-color: var(--accent);
   transform: translateY(-2px);
+}
+
+.card.dragging {
+  opacity: 0.55;
+  border-color: var(--accent);
+  transform: scale(0.98);
 }
 
 .card .thumb {

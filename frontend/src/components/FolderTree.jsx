@@ -19,9 +19,17 @@ function persistExpanded(set) {
   }
 }
 
-export default function FolderTree({ folders, current, onSelect }) {
+export default function FolderTree({
+  folders,
+  current,
+  draggingFile,
+  onSelect,
+  onDropFile,
+  onDropFileToNewFolder,
+}) {
   const tree = buildFolderTree(folders);
   const [expanded, setExpanded] = useState(loadExpanded);
+  const [dropTarget, setDropTarget] = useState(null);
 
   // Reload from storage on mount (in case it changed in another tab).
   useEffect(() => {
@@ -64,16 +72,53 @@ export default function FolderTree({ folders, current, onSelect }) {
 
   const children = Object.values(tree.children).sort(byName);
 
+  function handleDrop(e, targetPath) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTarget(null);
+    const file = readDraggedFile(e, draggingFile);
+    if (file) onDropFile?.(file, targetPath);
+  }
+
+  function handleNewFolderDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTarget(null);
+    const file = readDraggedFile(e, draggingFile);
+    if (file) onDropFileToNewFolder?.(file, current);
+  }
+
+  function allowDrop(e, targetPath) {
+    if (!draggingFile) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropTarget(targetPath);
+  }
+
   return (
     <nav className="folder-tree">
       <button
-        className={`ft-item root ${current === "" ? "active" : ""}`}
+        className={`ft-item root ${current === "" ? "active" : ""} ${dropTarget === "" ? "drop-target" : ""}`}
         onClick={() => onSelect("")}
+        onDragOver={(e) => allowDrop(e, "")}
+        onDragLeave={() => setDropTarget(null)}
+        onDrop={(e) => handleDrop(e, "")}
       >
         <span className="ft-icon">▸</span>
         <span className="ft-label">Tout</span>
         <span className="ft-count">{tree.totalCount}</span>
       </button>
+      {draggingFile && (
+        <button
+          className={`ft-new-folder ${dropTarget === "__new" ? "drop-target" : ""}`}
+          onDragOver={(e) => allowDrop(e, "__new")}
+          onDragLeave={() => setDropTarget(null)}
+          onDrop={handleNewFolderDrop}
+        >
+          <span className="ft-icon">＋</span>
+          <span className="ft-label">Nouveau dossier…</span>
+        </button>
+      )}
       {children.map((node) => (
         <FolderNode
           key={node.path}
@@ -81,25 +126,66 @@ export default function FolderTree({ folders, current, onSelect }) {
           depth={1}
           current={current}
           expanded={expanded}
+          dropTarget={dropTarget}
+          draggingFile={draggingFile}
           onToggle={toggle}
           onSelect={onSelect}
+          onDropFile={onDropFile}
+          onDropTargetChange={setDropTarget}
         />
       ))}
     </nav>
   );
 }
 
-function FolderNode({ node, depth, current, expanded, onToggle, onSelect }) {
+function FolderNode({
+  node,
+  depth,
+  current,
+  expanded,
+  dropTarget,
+  draggingFile,
+  onToggle,
+  onSelect,
+  onDropFile,
+  onDropTargetChange,
+}) {
   const isOpen = expanded.has(node.path);
   const isActive = current === node.path;
   const hasChildren = Object.keys(node.children).length > 0;
   const kids = hasChildren ? Object.values(node.children).sort(byName) : [];
 
+  function allowDrop(e) {
+    if (!draggingFile) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    onDropTargetChange(node.path);
+  }
+
+  function handleDragEnter(e) {
+    if (!draggingFile) return;
+    e.stopPropagation();
+    if (hasChildren && !isOpen) onToggle(node.path);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    onDropTargetChange(null);
+    const file = readDraggedFile(e, draggingFile);
+    if (file) onDropFile?.(file, node.path);
+  }
+
   return (
     <div className="ft-node">
       <div
-        className={`ft-item ${isActive ? "active" : ""}`}
+        className={`ft-item ${isActive ? "active" : ""} ${dropTarget === node.path ? "drop-target" : ""}`}
         style={{ paddingLeft: 8 + depth * 14 }}
+        onDragEnter={handleDragEnter}
+        onDragOver={allowDrop}
+        onDragLeave={() => onDropTargetChange(null)}
+        onDrop={handleDrop}
       >
         <button
           className="ft-twisty"
@@ -123,8 +209,12 @@ function FolderNode({ node, depth, current, expanded, onToggle, onSelect }) {
               depth={depth + 1}
               current={current}
               expanded={expanded}
+              dropTarget={dropTarget}
+              draggingFile={draggingFile}
               onToggle={onToggle}
               onSelect={onSelect}
+              onDropFile={onDropFile}
+              onDropTargetChange={onDropTargetChange}
             />
           ))}
         </div>
@@ -135,4 +225,14 @@ function FolderNode({ node, depth, current, expanded, onToggle, onSelect }) {
 
 function byName(a, b) {
   return a.name.localeCompare(b.name, "fr", { sensitivity: "base", numeric: true });
+}
+
+function readDraggedFile(e, fallback) {
+  const payload = e.dataTransfer.getData("application/x-polykeep-file");
+  if (!payload) return fallback;
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return fallback;
+  }
 }

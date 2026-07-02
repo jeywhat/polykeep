@@ -26,6 +26,7 @@ export default function App() {
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [draggingFile, setDraggingFile] = useState(null);
 
   const notify = useCallback((message, kind = "info") => {
     setToast({ message, kind });
@@ -114,6 +115,43 @@ export default function App() {
     loadFolders();
   }
 
+  async function handleDropMove(file, targetDir) {
+    if (!file) return;
+    const normalizedTarget = normalizeFolderPath(targetDir);
+    if (file.parent_dir === normalizedTarget) {
+      notify("Ce fichier est déjà dans ce dossier.", "info");
+      return;
+    }
+    try {
+      const updated = await api.moveFile(file.id, normalizedTarget);
+      notify(
+        `« ${file.name} » déplacé vers ${normalizedTarget ? `« ${normalizedTarget} »` : "la racine"}.`,
+        "success"
+      );
+      handleMutate(updated);
+      await loadFiles();
+    } catch (e) {
+      notify(e.message, "error");
+    }
+  }
+
+  async function handleDropMoveToNewFolder(file, baseFolder = "") {
+    if (!file) return;
+    const base = normalizeFolderPath(baseFolder);
+    const suffix = base ? `${base}/` : "";
+    const input = prompt(
+      "Nouveau dossier de destination",
+      suffix
+    );
+    if (input === null) return;
+    const targetDir = normalizeFolderPath(input);
+    if (!targetDir) {
+      notify("Indiquez un dossier de destination.", "error");
+      return;
+    }
+    await handleDropMove(file, targetDir);
+  }
+
   return (
     <div className="app">
       <div className="topbar">
@@ -125,7 +163,14 @@ export default function App() {
       <div className="main">
         <aside className="folder-rail">
           <div className="rail-header">Dossiers</div>
-          <FolderTree folders={folders} current={folder} onSelect={setFolder} />
+          <FolderTree
+            folders={folders}
+            current={folder}
+            draggingFile={draggingFile}
+            onSelect={setFolder}
+            onDropFile={handleDropMove}
+            onDropFileToNewFolder={handleDropMoveToNewFolder}
+          />
         </aside>
 
         <div className="content">
@@ -144,7 +189,14 @@ export default function App() {
             onScan={handleScan}
             scanning={scanning}
           />
-          <FileGrid files={files} folder={folder} onSelect={setSelected} loading={loading} />
+          <FileGrid
+            files={files}
+            folder={folder}
+            onSelect={setSelected}
+            onDragStart={setDraggingFile}
+            onDragEnd={() => setDraggingFile(null)}
+            loading={loading}
+          />
         </div>
 
         <div className="sidebar">
@@ -176,4 +228,12 @@ export default function App() {
       {toast && <div className={`toast ${toast.kind}`}>{toast.message}</div>}
     </div>
   );
+}
+
+function normalizeFolderPath(path) {
+  return (path || "")
+    .trim()
+    .replaceAll("\\", "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\/|\/$/g, "");
 }

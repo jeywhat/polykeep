@@ -8,7 +8,10 @@ or changed files trigger work.
 from __future__ import annotations
 
 import datetime as dt
+import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -25,6 +28,22 @@ SUPPORTED_EXT = {".stl", ".lys"}
 
 # Skip these directories during the scan (trash, hidden dirs).
 _SKIP_DIRS = {".trash", "$RECYCLE.BIN", "System Volume Information", "__pycache__"}
+
+
+@dataclass(frozen=True)
+class _ExtraTask:
+    file_id: int
+    path: Path
+    ext: str
+    compute_hash: bool
+    compute_thumbnail: bool
+
+
+@dataclass(frozen=True)
+class _ExtraResult:
+    file_id: int
+    hash: str | None = None
+    thumbnail_path: str | None = None
 
 
 def _ext(path: Path) -> str:
@@ -62,6 +81,7 @@ def scan_storage(session: Session) -> dict:
     root = storage_root()
 
     found_rel: set[str] = set()
+    extra_tasks: list[_ExtraTask] = []
     scanned = added = updated = missing = 0
 
     for path in root.rglob("*"):
@@ -97,7 +117,7 @@ def scan_storage(session: Session) -> dict:
             )
             session.add(file_obj)
             session.flush()
-            _index_extras(file_obj, path, session)
+            extra_tasks.append(_make_extra_task(file_obj, path))
             _set_tags(
                 file_obj,
                 extract_tags(file_obj.name, file_obj.parent_dir),
@@ -115,9 +135,11 @@ def scan_storage(session: Session) -> dict:
                 changed = True
             # Re-extract thumbnail / hash if the size changed.
             if changed:
-                _index_extras(existing, path, session, force=True)
+                extra_tasks.append(_make_extra_task(existing, path, force=True))
                 updated += 1
             existing.scanned_at = dt.datetime.now(dt.timezone.utc)
+
+    _apply_extra_results(session, _run_extra_tasks(extra_tasks))
 
     # Mark files that vanished from disk.
     for db_file in session.query(File).all():
@@ -137,9 +159,60 @@ def scan_storage(session: Session) -> dict:
     }
 
 
-def _index_extras(
-    file_obj: File, path: Path, session: Session, force: bool = False
-) -> None:
+def _make_extra_task(file_obj: File, path: Path, force: bool = False) -> _ExtraTask:
+    """Build a filesystem-only indexing task for work that can run in parallel."""
+    return _ExtraTask(
+        file_id=file_obj.id,
+        path=path,
+        ext=file_obj.ext,
+        compute_hash=file_obj.ext == "stl" and (force or not file_obj.hash),
+        compute_thumbnail=force or not file_obj.thumbnail_path,
+    )
+
+
+def _scan_workers(task_count: int) -> int:
+    if task_count <= 1:
+        return 1
+    configured = settings.scan_workers
+    if configured > 0:
+        return min(configured, task_count)
+    cpu_count = os.cpu_count() or 1
+    return min(task_count, max(2, min(cpu_count, 8)))
+
+
+def _run_extra_tasks(tasks: list[_ExtraTask]) -> list[_ExtraResult]:
+    """Run hash / thumbnail work outside SQLAlchemy so sessions stay serial."""
+    if not tasks:
+        return []
+
+    workers = _scan_workers(len(tasks))
+    if workers <= 1:
+        return [_index_extras(task) for task in tasks]
+
+    results: list[_ExtraResult] = []
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="scan-extra") as pool:
+        future_map = {pool.submit(_index_extras, task): task for task in tasks}
+        for future in as_completed(future_map):
+            task = future_map[future]
+            try:
+                results.append(future.result())
+            except Exception:  # noqa: BLE001 - one bad file must not kill a scan
+                results.append(_ExtraResult(file_id=task.file_id))
+    return results
+
+
+def _apply_extra_results(session: Session, results: list[_ExtraResult]) -> None:
+    for result in results:
+        file_obj = session.get(File, result.file_id)
+        if file_obj is None:
+            continue
+        if result.hash:
+            file_obj.hash = result.hash
+        if result.thumbnail_path:
+            file_obj.thumbnail_path = result.thumbnail_path
+
+
+def _index_extras(task: _ExtraTask) -> _ExtraResult:
     """Compute hash (STL) and thumbnail (STL + LYS) for a file.
 
     Hashing is only done for STL files; ``.lys`` are ZIP archives whose hash is
@@ -152,20 +225,30 @@ def _index_extras(
     Both are stored under ``/config/thumbnails/<id>.png`` so the same preview
     route serves either type.
     """
+    hash_value: str | None = None
+    thumbnail_path: str | None = None
+
     # Hash
-    if file_obj.ext == "stl" and (force or not file_obj.hash):
+    if task.compute_hash:
         try:
-            file_obj.hash = sha256_of(path)
+            hash_value = sha256_of(task.path)
         except OSError:
             pass
 
     # Thumbnail (LYS: embedded image, STL: rendered PNG).
-    if force or not file_obj.thumbnail_path:
-        thumb_path = settings.thumbnail_dir / f"{file_obj.id or 'tmp'}.png"
+    if task.compute_thumbnail:
+        thumb_path = settings.thumbnail_dir / f"{task.file_id}.png"
+        thumb_path.parent.mkdir(parents=True, exist_ok=True)
         ok = False
-        if file_obj.ext == "lys":
-            ok = extract_thumbnail(path, thumb_path)
-        elif file_obj.ext == "stl":
-            ok = render_stl(path, thumb_path)
+        if task.ext == "lys":
+            ok = extract_thumbnail(task.path, thumb_path)
+        elif task.ext == "stl":
+            ok = render_stl(task.path, thumb_path)
         if ok:
-            file_obj.thumbnail_path = f"{file_obj.id}.png"
+            thumbnail_path = f"{task.file_id}.png"
+
+    return _ExtraResult(
+        file_id=task.file_id,
+        hash=hash_value,
+        thumbnail_path=thumbnail_path,
+    )

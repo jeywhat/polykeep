@@ -1,11 +1,49 @@
 import { formatSize, statusLabel, relativeDirLabel } from "../utils.js";
 import { api } from "../api/client.js";
+import { useRef, useState } from "react";
 
-export default function FileCard({ file, folder, onClick }) {
+export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd }) {
   const isLys = file.ext === "lys";
   const relDir = relativeDirLabel(file.parent_dir, folder);
+  const [dragging, setDragging] = useState(false);
+  const suppressClick = useRef(false);
+  const canDrag = !["deleted", "missing"].includes(file.status);
+
+  function handleDragStart(e) {
+    if (!canDrag) {
+      e.preventDefault();
+      return;
+    }
+    suppressClick.current = true;
+    setDragging(true);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/x-polykeep-file", JSON.stringify(file));
+    e.dataTransfer.setData("text/plain", String(file.id));
+    onDragStart?.(file);
+  }
+
+  function handleDragEnd() {
+    setDragging(false);
+    onDragEnd?.();
+    setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
+  }
+
+  function handleClick() {
+    if (suppressClick.current) return;
+    onClick(file);
+  }
+
   return (
-    <div className="card" onClick={() => onClick(file)}>
+    <div
+      className={`card ${dragging ? "dragging" : ""}`}
+      draggable={canDrag}
+      onClick={handleClick}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      title={canDrag ? "Glisser vers un dossier" : undefined}
+    >
       <div className="thumb">
         {file.preview_url ? (
           <img src={api.thumbUrl(file.id)} alt={file.name} />

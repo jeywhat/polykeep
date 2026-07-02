@@ -17,6 +17,7 @@ services:
     environment:
       # Optional tunables (defaults shown). Override freely.
       - T3D_SIMILARITY_THRESHOLD=0.6
+      # - T3D_SCAN_WORKERS=0  # 0=auto, 1=sequential, >1=fixed worker count
       # - T3D_SORTED_SUBDIR=Trié
       # - T3D_ARCHIVED_SUBDIR=Archivé
       # - T3D_AUTO_KEYWORDS=warhammer,articulated,supported,...

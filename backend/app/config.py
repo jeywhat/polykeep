@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # --- Tunables for the sort engine -------------------------------------
     similarity_threshold: float = 0.6  # difflib ratio above which two file
     # names are considered "related"
+    scan_workers: int = 0  # 0 = auto, 1 = sequential, >1 = parallel extras
     auto_keywords: str = (
         "warhammer,wh40k,age of sigmar,aos,dnd,d&d,articulated,articule,"
         "supported,supporte,support,no_support,no-support,sans_support,"
