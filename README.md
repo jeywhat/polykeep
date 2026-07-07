@@ -1,5 +1,8 @@
 # ⬢ PolyKeep
 
+[![Docker Hub](https://img.shields.io/docker/v/jeywhat/polykeep?label=Docker%20Hub&logo=docker&sort=semver)](https://hub.docker.com/r/jeywhat/polykeep)
+[![GitHub Container Registry](https://img.shields.io/github/v/release/jeywhat/polykeep?label=GHCR&logo=github&include_prereleases&sort=semver)](https://github.com/jeywhat/polykeep/pkgs/container/polykeep)
+
 Organiseur de fichiers 3D auto-hébergé pour **Unraid**. Scanne, prévisualise et
 trie vos fichiers `.stl` et `.lys` avec un moteur de tri **sécurisé** (rien
 n'est déplacé sans votre validation) et une visionneuse 3D interactive.
