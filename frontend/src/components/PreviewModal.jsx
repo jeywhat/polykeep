@@ -1,12 +1,18 @@
 import { useState } from "react";
-import StlViewer from "./StlViewer.jsx";
+import ModelViewer from "./ModelViewer.jsx";
 import { api } from "../api/client.js";
 import { formatSize, statusLabel } from "../utils.js";
 
+// Formats that can be previewed in the 3D viewer
+const VIEWABLE_3D = ["stl", "obj", "ply", "gltf", "glb", "dae", "fbx", "3mf"];
+// Formats that can have extracted thumbnails (LYS)
+const THUMBNAIL_FORMATS = ["lys"];
+
 export default function PreviewModal({ file, onClose, onMutate, notify }) {
   const [moveTarget, setMoveTarget] = useState("");
-  const [stlInfo, setStlInfo] = useState(null);
-  const isStl = file.ext === "stl";
+  const [modelInfo, setModelInfo] = useState(null);
+  const isViewable3D = VIEWABLE_3D.includes(file.ext);
+  const hasThumbnail = THUMBNAIL_FORMATS.includes(file.ext) && file.preview_url;
 
   if (!file) return null;
 
@@ -45,9 +51,9 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
         </div>
         <div className="modal-body">
           <div className="viewer">
-            {isStl ? (
-              <StlViewer url={api.stlUrl(file.id)} onLoaded={setStlInfo} />
-            ) : file.preview_url ? (
+            {isViewable3D ? (
+              <ModelViewer url={api.modelUrl(file.id)} onLoaded={setModelInfo} format={file.ext} />
+            ) : hasThumbnail ? (
               <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <img
                   src={api.thumbUrl(file.id)}
@@ -57,8 +63,11 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
               </div>
             ) : (
               <div className="empty">
-                <h2>Pas d'aperçu</h2>
-                <p>Ce fichier .lys ne contient pas de vignette extractible.</p>
+                <h2>Pas d'aperçu 3D</h2>
+                <p>
+                  Ce format ({file.ext.toUpperCase()}) n'est pas encore supporté pour la
+                  prévisualisation 3D interactive.
+                </p>
               </div>
             )}
           </div>
@@ -80,11 +89,11 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
               <div className="info-label">Taille</div>
               <div className="info-value">{formatSize(file.size)}</div>
             </div>
-            {stlInfo && (
+            {modelInfo && (
               <div className="info-row">
                 <div className="info-label">Géométrie</div>
                 <div className="info-value">
-                  {Math.round(stlInfo.triangles).toLocaleString("fr-FR")} triangles
+                  {Math.round(modelInfo.triangles).toLocaleString("fr-FR")} triangles
                 </div>
               </div>
             )}

@@ -4,7 +4,7 @@
 [![GitHub Container Registry](https://img.shields.io/github/v/release/jeywhat/polykeep?label=GHCR&logo=github&include_prereleases&sort=semver)](https://github.com/jeywhat/polykeep/pkgs/container/polykeep)
 
 Organiseur de fichiers 3D auto-hébergé pour **Unraid**. Scanne, prévisualise et
-trie vos fichiers `.stl` et `.lys` avec un moteur de tri **sécurisé** (rien
+trie vos fichiers `.stl`, `.lys`, `.obj`, `.ply`, `.3mf`, `.gltf`, `.glb`, `.fbx`, `.dae`, `.amf` avec un moteur de tri **sécurisé** (rien
 n'est déplacé sans votre validation) et une visionneuse 3D interactive.
 
 Inspiré de l'ergonomie de [Manyfold](https://manyfold.app), axé sur le tri
@@ -14,7 +14,7 @@ automatisé et la visualisation.
 
 ## ✨ Fonctionnalités
 
-- **Scan & indexation** du dossier `/storage` (fichiers `.stl` et `.lys`).
+- **Scan & indexation** du dossier `/storage` (fichiers `.stl`, `.lys`, `.obj`, `.ply`, `.3mf`, `.gltf`, `.glb`, `.fbx`, `.dae`, `.amf`).
 - **Navigation par arborescence** : rail de dossiers pliable à gauche,
   fil d'Ariane cliquable, grille groupée par sous-dossier. Parfait pour les
   structures profondes et récursives.

@@ -1,4 +1,4 @@
-"""Preview router — stream STL binaries + serve extracted LYS thumbnails."""
+"""Preview router — stream STL binaries + serve extracted LYS thumbnails + generic model files."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -22,6 +22,31 @@ def stream_stl(file_id: int, db: Session = Depends(get_db)):
     if not path.is_file():
         raise HTTPException(status_code=410, detail="Fichier absent du disque")
     media = "model/stl" if f.ext == "stl" else "application/octet-stream"
+    return FileResponse(path, media_type=media, filename=f.name)
+
+
+@router.get("/preview/model/{file_id}")
+def stream_model(file_id: int, db: Session = Depends(get_db)):
+    """Stream any 3D model file for the Three.js viewer."""
+    f = db.get(File, file_id)
+    if f is None:
+        raise HTTPException(status_code=404, detail="Fichier introuvable")
+    path = safe_join(f.rel_path)
+    if not path.is_file():
+        raise HTTPException(status_code=410, detail="Fichier absent du disque")
+
+    # MIME types for common 3D formats
+    mime_map = {
+        "stl": "model/stl",
+        "obj": "model/obj",
+        "ply": "application/octet-stream",
+        "gltf": "model/gltf+json",
+        "glb": "model/gltf-binary",
+        "dae": "model/vnd.collada+xml",
+        "fbx": "application/octet-stream",
+        "3mf": "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
+    }
+    media = mime_map.get(f.ext, "application/octet-stream")
     return FileResponse(path, media_type=media, filename=f.name)
 
 

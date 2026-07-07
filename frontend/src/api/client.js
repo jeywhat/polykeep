@@ -68,8 +68,9 @@ export const api = {
   rejectSuggestion: (id) =>
     request(`/suggestions/${id}/reject`, { method: "POST" }),
 
-  // Preview URLs are built by the backend; expose helpers for each.
+  // Preview URLs
   stlUrl: (id) => `${BASE}/preview/stl/${id}`,
+  modelUrl: (id) => `${BASE}/preview/model/${id}`,
   // Generic thumbnail (rendered STL PNG or extracted LYS image).
   thumbUrl: (id) => `${BASE}/preview/thumb/${id}`,
   lysThumbUrl: (id) => `${BASE}/preview/lys/${id}`,

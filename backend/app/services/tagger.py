@@ -15,6 +15,8 @@ _NOISE = {
     "the", "a", "an", "of", "and", "or", "for", "to", "in", "on", "with",
     "copy", "copie", "final", "v1", "v2", "stl", "lys", "model", "modelle",
     "file", "fichier", "new", "nouveau", "untitled",
+    # 3D format extensions (from settings.supported_extensions)
+    "obj", "ply", "3mf", "gltf", "glb", "fbx", "dae", "amf",
 }
 
 _TOKEN_SPLIT = re.compile(r"[_\-. \-]+|\b\d+\b")

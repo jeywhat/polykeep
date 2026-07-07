@@ -1,8 +1,8 @@
 """Filesystem scan + indexation.
 
-Walks ``/storage`` looking for ``.stl`` and ``.lys`` files, upserts them into
-the DB, marks missing files, lazily computes SHA-256 hashes, extracts ``.lys``
-thumbnails and applies auto-tags. Designed to be safely re-runnable: only new
+Walks ``/storage`` looking for supported 3D files, upserts them into
+the DB, marks missing files, lazily computes SHA-256 hashes, extracts thumbnails
+and applies auto-tags. Designed to be safely re-runnable: only new
 or changed files trigger work.
 """
 from __future__ import annotations
@@ -20,11 +20,10 @@ from ..config import settings
 from ..models import File, FileTag, Tag
 from .hasher import sha256_of
 from .lys_parser import extract_thumbnail
+from .mesh_renderer import can_render, render_mesh
 from .paths import storage_root, to_rel
 from .stl_renderer import render_stl
 from .tagger import extract_tags
-
-SUPPORTED_EXT = {".stl", ".lys"}
 
 # Skip these directories during the scan (trash, hidden dirs).
 _SKIP_DIRS = {".trash", "$RECYCLE.BIN", "System Volume Information", "__pycache__"}
@@ -87,7 +86,7 @@ def scan_storage(session: Session) -> dict:
     for path in root.rglob("*"):
         if not path.is_file():
             continue
-        if path.suffix.lower() not in SUPPORTED_EXT:
+        if path.suffix.lower() not in settings.supported_ext_set:
             continue
         # Skip anything inside a skipped directory.
         if any(part in _SKIP_DIRS for part in path.relative_to(root).parts):
@@ -235,15 +234,15 @@ def _index_extras(task: _ExtraTask) -> _ExtraResult:
         except OSError:
             pass
 
-    # Thumbnail (LYS: embedded image, STL: rendered PNG).
+    # Thumbnail (LYS: embedded image, STL/OBJ/PLY/GLTF/etc: rendered PNG).
     if task.compute_thumbnail:
         thumb_path = settings.thumbnail_dir / f"{task.file_id}.png"
         thumb_path.parent.mkdir(parents=True, exist_ok=True)
         ok = False
         if task.ext == "lys":
             ok = extract_thumbnail(task.path, thumb_path)
-        elif task.ext == "stl":
-            ok = render_stl(task.path, thumb_path)
+        elif can_render(task.ext):
+            ok = render_mesh(task.path, thumb_path)
         if ok:
             thumbnail_path = f"{task.file_id}.png"
 

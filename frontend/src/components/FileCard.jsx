@@ -2,8 +2,22 @@ import { formatSize, statusLabel, relativeDirLabel } from "../utils.js";
 import { api } from "../api/client.js";
 import { useRef, useState } from "react";
 
+// Extension-specific colors for badges
+const EXT_COLORS = {
+  stl: "var(--stl)",
+  lys: "var(--lys)",
+  obj: "var(--obj, #e67e22)",
+  ply: "var(--ply, #2ecc71)",
+  "3mf": "var(--3mf, #9b59b6)",
+  gltf: "var(--gltf, #3498db)",
+  glb: "var(--glb, #2980b9)",
+  fbx: "var(--fbx, #e74c3c)",
+  dae: "var(--dae, #1abc9c)",
+  amf: "var(--amf, #f39c12)",
+};
+
 export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd }) {
-  const isLys = file.ext === "lys";
+  const extColor = EXT_COLORS[file.ext] || "var(--stl)";
   const relDir = relativeDirLabel(file.parent_dir, folder);
   const [dragging, setDragging] = useState(false);
   const suppressClick = useRef(false);
@@ -48,8 +62,8 @@ export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd
         {file.preview_url ? (
           <img src={api.thumbUrl(file.id)} alt={file.name} />
         ) : (
-          <span className="ext-badge" style={{ color: isLys ? "var(--lys)" : "var(--stl)" }}>
-            {file.ext}
+          <span className="ext-badge" style={{ color: extColor }}>
+            {file.ext.toUpperCase()}
           </span>
         )}
       </div>

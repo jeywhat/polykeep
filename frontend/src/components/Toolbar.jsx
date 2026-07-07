@@ -32,6 +32,14 @@ export default function Toolbar({
         <option value="">Tous formats</option>
         <option value="stl">STL</option>
         <option value="lys">LYS</option>
+        <option value="obj">OBJ</option>
+        <option value="ply">PLY</option>
+        <option value="3mf">3MF</option>
+        <option value="gltf">GLTF</option>
+        <option value="glb">GLB</option>
+        <option value="fbx">FBX</option>
+        <option value="dae">DAE</option>
+        <option value="amf">AMF</option>
       </select>
       <select value={activeTag} onChange={(e) => setActiveTag(e.target.value)}>
         <option value="">Tous tags</option>
