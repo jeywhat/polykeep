@@ -35,7 +35,8 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }} # Sets target path to current repo/ghcr
+          images: docker.io/${{ github.repository }} # Target Docker Hub path
+
 
       # Step 4: Build and Push the Image (The core operation)
       - name: Build and push Docker image
