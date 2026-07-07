@@ -14,8 +14,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     # Recommended environment variables setup for clean build
-    env:
-      DOCKER_BUILDKIT: 2 # Use modern BuildKit features
+    env: {}
 
     steps:
       # Step 1: Checkout the repository code to access Dockerfile and context files.
