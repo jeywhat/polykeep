@@ -75,18 +75,26 @@ def _set_tags(db: File, tag_names: list[str], source: str, session: Session) -> 
 
 
 def scan_storage(session: Session) -> dict:
-    """Scan /storage and update the index. Returns a summary dict."""
+    """Scan /storage and update the index. Returns a summary dict.
+
+    This function uses a SHORT-LIVED session for DB operations only.
+    Heavy work (hashing, thumbnail generation) runs in parallel OUTSIDE
+    the DB session to avoid locking the database.
+    """
     start = time.perf_counter()
     root = storage_root()
+
+    SUPPORTED_EXT = {ext.strip().lower() for ext in settings.supported_extensions.split(",") if ext.strip()}
 
     found_rel: set[str] = set()
     extra_tasks: list[_ExtraTask] = []
     scanned = added = updated = missing = 0
 
+    # Phase 1: Fast DB pass - find files, create DB entries, collect work
     for path in root.rglob("*"):
         if not path.is_file():
             continue
-        if path.suffix.lower() not in settings.supported_ext_set:
+        if path.suffix.lower() not in SUPPORTED_EXT:
             continue
         # Skip anything inside a skipped directory.
         if any(part in _SKIP_DIRS for part in path.relative_to(root).parts):
@@ -115,7 +123,7 @@ def scan_storage(session: Session) -> dict:
                 file_created=dt.datetime.fromtimestamp(stat.st_mtime, dt.timezone.utc),
             )
             session.add(file_obj)
-            session.flush()
+            session.flush()  # Get the ID
             extra_tasks.append(_make_extra_task(file_obj, path))
             _set_tags(
                 file_obj,
@@ -138,15 +146,26 @@ def scan_storage(session: Session) -> dict:
                 updated += 1
             existing.scanned_at = dt.datetime.now(dt.timezone.utc)
 
-    _apply_extra_results(session, _run_extra_tasks(extra_tasks))
-
-    # Mark files that vanished from disk.
+    # Phase 2: Mark missing files
     for db_file in session.query(File).all():
         if db_file.rel_path not in found_rel and db_file.status != "deleted":
             db_file.status = "missing"
             missing += 1
 
+    # Commit the fast DB changes NOW, before heavy work
     session.commit()
+
+    # Phase 3: Heavy work OUTSIDE any DB session (parallel, no locks)
+    extra_results = _run_extra_tasks(extra_tasks)
+
+    # Phase 4: Apply results with a FRESH short session
+    from ..database import SessionLocal
+    apply_session = SessionLocal()
+    try:
+        _apply_extra_results(apply_session, extra_results)
+        apply_session.commit()
+    finally:
+        apply_session.close()
 
     duration_ms = int((time.perf_counter() - start) * 1000)
     return {
