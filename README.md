@@ -208,8 +208,9 @@ Préfixe `T3D_`. Toutes sont optionnelles (valeurs par défaut indiquées).
 | `T3D_SMB_ROOT` | *(vide)* | Chemin UNC Windows correspondant à `/storage` |
 | `T3D_BASE_URL` | *(vide)* | URL publique du NAS utilisée par le helper |
 | `T3D_OPEN_MODE` | `auto` | Ouverture `local`, `smb`, ou automatique selon `T3D_SMB_ROOT` |
-| `T3D_THUMBNAIL_MAX_SIZE_MB` | `5` | Taille maximale rendue automatiquement en vignette pendant un scan |
-| `T3D_FINGERPRINT_MAX_SIZE_MB` | `100` | Taille maximale analysée par `trimesh` pour l'empreinte géométrique |
+| `T3D_THUMBNAIL_MAX_SIZE_MB` | `1` | Taille maximale rendue automatiquement en vignette pendant un scan |
+| `T3D_FINGERPRINT_MAX_SIZE_MB` | `5` | Taille maximale analysée par `trimesh` pour l'empreinte géométrique |
+| `T3D_MESH_WORKERS` | `1` | Nombre de maillages analysés simultanément |
 | `T3D_SIMILARITY_THRESHOLD` | `0.6` | Seuil de similarité des noms (0–1) |
 | `T3D_SCAN_WORKERS` | `0` | Workers pour hash/vignettes (`0` = auto, `1` = séquentiel) |
 | `T3D_SORTED_SUBDIR` | `Trié` | Sous-dossier pour les fichiers triés |

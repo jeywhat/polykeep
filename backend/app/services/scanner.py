@@ -45,7 +45,7 @@ from .scan_progress import (
 from .tagger import extract_tags
 
 
-_MESH_TASK_LIMIT = threading.Semaphore(2)
+_MESH_TASK_LIMIT = threading.Semaphore(max(1, settings.mesh_workers))
 
 # Skip these directories during the scan (trash, hidden dirs).
 _SKIP_DIRS = {".trash", "$RECYCLE.BIN", "System Volume Information", "__pycache__"}
