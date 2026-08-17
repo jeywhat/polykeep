@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import File
+from ..config import settings
+from ..services.mesh_renderer import can_render, convert_to_glb
 from ..services.paths import safe_join
 
 router = APIRouter()
@@ -48,6 +50,23 @@ def stream_model(file_id: int, db: Session = Depends(get_db)):
     }
     media = mime_map.get(f.ext, "application/octet-stream")
     return FileResponse(path, media_type=media, filename=f.name)
+
+
+@router.get("/preview/glb/{file_id}")
+def preview_glb(file_id: int, db: Session = Depends(get_db)):
+    """Convert a source mesh once and serve its browser-friendly GLB cache."""
+    f = db.get(File, file_id)
+    if f is None:
+        raise HTTPException(status_code=404, detail="Fichier introuvable")
+    if not can_render(f.ext):
+        raise HTTPException(status_code=404, detail="Format non convertible en GLB")
+    source = safe_join(f.rel_path)
+    if not source.is_file():
+        raise HTTPException(status_code=404, detail="Fichier absent ou conversion impossible")
+    cached = settings.thumbnail_dir / "glb" / f"{f.id}.glb"
+    if not convert_to_glb(source, cached):
+        raise HTTPException(status_code=404, detail="Conversion GLB impossible")
+    return FileResponse(cached, media_type="model/gltf-binary", filename=f"{f.id}.glb")
 
 
 @router.get("/preview/lys/{file_id}")

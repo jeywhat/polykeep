@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ModelViewer from "./ModelViewer.jsx";
 import { api } from "../api/client.js";
 import { formatSize, humanize_name, statusLabel } from "../utils.js";
@@ -15,6 +15,8 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
   const isViewable3D = VIEWABLE_3D.includes(file.ext);
   const hasThumbnail = THUMBNAIL_FORMATS.includes(file.ext) && file.preview_url;
   const displayName = file.display_name || humanize_name(file.name, file.tags, file.ext);
+
+  useEffect(() => { setModelInfo(null); }, [file.id]);
 
   if (!file) return null;
 
@@ -76,11 +78,7 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
               <ModelViewer url={api.modelUrl(file.id)} onLoaded={setModelInfo} format={file.ext} />
             ) : hasThumbnail ? (
               <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <img
-                  src={api.thumbUrl(file.id)}
-                  alt={displayName}
-                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
-                />
+                <img src={api.thumbUrl(file.id)} alt={displayName} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
               </div>
             ) : (
               <div className="empty">
@@ -118,7 +116,7 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
               <div className="info-row">
                 <div className="info-label">Géométrie</div>
                 <div className="info-value">
-                  {Math.round(modelInfo.triangles).toLocaleString("fr-FR")} triangles
+                  {Math.round(modelInfo.faces ?? modelInfo.triangles).toLocaleString("fr-FR")} faces
                 </div>
               </div>
             )}

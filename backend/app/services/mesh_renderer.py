@@ -9,6 +9,7 @@ crop tight, scale to fill ratio, centre in square output — same as the STL ren
 from __future__ import annotations
 
 import threading
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -23,6 +24,8 @@ _FILL = 0.9
 # Isometric-ish viewing angle.
 _ELEV, _AZIM = 20.0, 45.0
 _RENDER_LOCK = threading.Lock()
+_GLB_LOCK = threading.Lock()
+_LOGGER = logging.getLogger(__name__)
 
 
 def _load_mesh(path: Path) -> Optional["trimesh.Trimesh"]:
@@ -30,6 +33,7 @@ def _load_mesh(path: Path) -> Optional["trimesh.Trimesh"]:
     try:
         import trimesh
     except ImportError:
+        _LOGGER.warning("GLB/mesh preview unavailable: trimesh is not installed")
         return None
 
     try:
@@ -40,7 +44,8 @@ def _load_mesh(path: Path) -> Optional["trimesh.Trimesh"]:
         if not isinstance(mesh, trimesh.Trimesh) or len(mesh.faces) == 0:
             return None
         return mesh
-    except Exception:
+    except Exception as exc:
+        _LOGGER.warning("Unable to load mesh %s: %s", path, exc)
         return None
 
 
@@ -192,6 +197,36 @@ def render_mesh(path: Path, out_path: Path) -> bool:
     # pyplot uses process-global state and is not safe across scan workers.
     with _RENDER_LOCK:
         return _render_mesh(vertices, faces, out_path)
+
+
+def convert_to_glb(path: Path, out_path: Path) -> bool:
+    """Export a supported mesh as a compact GLB, using an atomic disk cache."""
+    if out_path.is_file() and out_path.stat().st_size > 0 and out_path.stat().st_mtime >= path.stat().st_mtime:
+        return True
+    mesh = _load_mesh(path)
+    if mesh is None:
+        return False
+    try:
+        import trimesh
+    except ImportError:
+        return False
+
+    temporary = out_path.with_suffix(f".{threading.get_ident()}.tmp")
+    with _GLB_LOCK:
+        if out_path.is_file() and out_path.stat().st_size > 0 and out_path.stat().st_mtime >= path.stat().st_mtime:
+            return True
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            mesh.export(str(temporary), file_type="glb")
+            if not temporary.is_file() or temporary.stat().st_size == 0:
+                return False
+            temporary.replace(out_path)
+            return True
+        except Exception as exc:  # noqa: BLE001 - conversion failures become a 404
+            _LOGGER.warning("GLB conversion failed for %s: %s", path, exc)
+            return False
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def can_render(ext: str) -> bool:

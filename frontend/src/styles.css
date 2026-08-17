@@ -699,6 +699,10 @@ button.crumb:hover {
   word-break: break-all;
 }
 
+.viewer {
+  position: relative;
+}
+
 /* ---------- Misc ---------- */
 .empty {
   text-align: center;
