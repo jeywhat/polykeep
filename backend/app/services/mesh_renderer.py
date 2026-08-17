@@ -8,6 +8,7 @@ crop tight, scale to fill ratio, centre in square output — same as the STL ren
 """
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +22,7 @@ _RENDER_SCALE = 2
 _FILL = 0.9
 # Isometric-ish viewing angle.
 _ELEV, _AZIM = 20.0, 45.0
+_RENDER_LOCK = threading.Lock()
 
 
 def _load_mesh(path: Path) -> Optional["trimesh.Trimesh"]:
@@ -85,9 +87,16 @@ def _render_mesh(vertices: np.ndarray, faces: np.ndarray, out_path: Path) -> boo
     face_colors = np.clip(accent * shade[:, None], 0.0, 1.0)
 
     canvas_px = _IMG_SIZE * _RENDER_SCALE
-    fig = plt.figure(figsize=(canvas_px / 100, canvas_px / 100), dpi=100)
+    fig = plt.figure(
+        figsize=(canvas_px / 100, canvas_px / 100), dpi=100, facecolor=(0, 0, 0, 0)
+    )
     try:
         ax = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor((0, 0, 0, 0))
+        ax.patch.set_alpha(0)
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.set_facecolor((0, 0, 0, 0))
+            pane.set_alpha(0)
         coll = Poly3DCollection(
             vertices[faces], facecolors=face_colors, edgecolors="none", linewidths=0
         )
@@ -180,22 +189,25 @@ def render_mesh(path: Path, out_path: Path) -> bool:
     if len(vertices) == 0:
         return False
     faces = mesh.faces
-    return _render_mesh(vertices, faces, out_path)
+    # pyplot uses process-global state and is not safe across scan workers.
+    with _RENDER_LOCK:
+        return _render_mesh(vertices, faces, out_path)
 
 
 def can_render(ext: str) -> bool:
     """Return True if this renderer can handle the given extension."""
-    return ext.lower() in {
-        ".stl",
-        ".obj",
-        ".ply",
-        ".gltf",
-        ".glb",
-        ".3mf",
-        ".dae",
-        ".fbx",
-        ".x3d",
-        ".off",
-        ".stp",
-        ".step",
+    return ext.lower().lstrip(".") in {
+        "stl",
+        "obj",
+        "ply",
+        "gltf",
+        "glb",
+        "3mf",
+        "dae",
+        "fbx",
+        "x3d",
+        "off",
+        "stp",
+        "step",
+        "amf",
     }

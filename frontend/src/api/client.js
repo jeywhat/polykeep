@@ -74,4 +74,7 @@ export const api = {
   // Generic thumbnail (rendered STL PNG or extracted LYS image).
   thumbUrl: (id) => `${BASE}/preview/thumb/${id}`,
   lysThumbUrl: (id) => `${BASE}/preview/lys/${id}`,
+
+  // Scan progress
+  scanProgress: () => request("/scan/progress"),
 };

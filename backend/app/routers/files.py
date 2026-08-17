@@ -9,6 +9,7 @@ from ..database import get_db
 from ..models import File, FileTag, Tag
 from ..schemas import FileListOut, FileOut, FolderOut, MoveRequest, TagRequest
 from ..services.paths import safe_join
+from ..services.scan_progress import ScanInProgressError, mutation_lock
 from ..services.sorter import move_file, move_to_trash
 
 router = APIRouter()
@@ -104,10 +105,13 @@ def move_one_file(
     if f is None:
         raise HTTPException(status_code=404, detail="Fichier introuvable")
     try:
-        target = safe_join(req.target_dir)
-        target.mkdir(parents=True, exist_ok=True)
-        move_file(db, f, target)
-        db.commit()
+        with mutation_lock():
+            target = safe_join(req.target_dir)
+            target.mkdir(parents=True, exist_ok=True)
+            move_file(db, f, target)
+            db.commit()
+    except ScanInProgressError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _file_to_out(f)
@@ -120,8 +124,11 @@ def delete_file(file_id: int, db: Session = Depends(get_db)):
     if f is None:
         raise HTTPException(status_code=404, detail="Fichier introuvable")
     try:
-        move_to_trash(db, f)
-        db.commit()
+        with mutation_lock():
+            move_to_trash(db, f)
+            db.commit()
+    except ScanInProgressError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _file_to_out(f)

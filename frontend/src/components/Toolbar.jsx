@@ -11,7 +11,21 @@ export default function Toolbar({
   total,
   onScan,
   scanning,
+  scanProgress,
 }) {
+  const showProgress = scanning && scanProgress;
+  const phaseLabels = {
+    idle: "En attente",
+    discovery: "Découverte fichiers",
+    db_upsert: "Indexation base de données",
+    missing_mark: "Marquage manquants",
+    thumbnails: "Génération vignettes",
+    apply_results: "Finalisation",
+    suggestions: "Suggestions",
+    complete: "Terminé",
+    error: "Erreur",
+  };
+
   return (
     <div className="toolbar">
       <input
@@ -53,6 +67,38 @@ export default function Toolbar({
       <button className="primary" onClick={onScan} disabled={scanning}>
         {scanning ? "Scan en cours…" : "⏻ Scanner"}
       </button>
+
+      {showProgress && (
+        <div className="scan-progress">
+          <div className="progress-header">
+            <span className="phase-label">{phaseLabels[scanProgress.phase] || scanProgress.phase}</span>
+            <span className="progress-pct">{scanProgress.overall_progress.toFixed(1)}%</span>
+          </div>
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{ width: `${scanProgress.overall_progress}%` }}
+            />
+          </div>
+          <div className="progress-details">
+            {scanProgress.phase_total_files > 0 && (
+              <>
+                <span>{scanProgress.processed_files}/{scanProgress.phase_total_files} fichiers</span>
+                <span className="progress-current-file">{scanProgress.current_file}</span>
+              </>
+            )}
+            {scanProgress.elapsed_seconds > 0 && (
+              <span>⏱ {scanProgress.elapsed_seconds.toFixed(0)}s</span>
+            )}
+            {scanProgress.eta_seconds && (
+              <span>⏳ ~{scanProgress.eta_seconds.toFixed(0)}s</span>
+            )}
+          </div>
+          {scanProgress.error && (
+            <div className="progress-error">Erreur: {scanProgress.error}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

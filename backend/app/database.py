@@ -28,7 +28,7 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
 # check_same_thread=False: FastAPI may use the session across threads.
 engine = create_engine(
     f"sqlite:///{settings.db_path}",
-    connect_args={"check_same_thread": False},
+    connect_args={"check_same_thread": False, "timeout": 30},
     future=True,
     pool_pre_ping=True,  # Verify connections before use
 )

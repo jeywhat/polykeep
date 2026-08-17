@@ -67,6 +67,7 @@ class ScanResultOut(BaseModel):
     updated: int
     missing: int
     duration_ms: int
+    suggestions_error: str | None = None
 
 
 class SuggestionOut(BaseModel):

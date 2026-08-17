@@ -10,6 +10,7 @@ from ..database import get_db
 from ..models import Suggestion
 from ..schemas import SuggestionOut
 from ..services import sorter
+from ..services.scan_progress import ScanInProgressError, mutation_lock
 
 router = APIRouter()
 
@@ -28,22 +29,33 @@ def list_suggestions(
 @router.post("/suggestions/recompute")
 def recompute(db: Session = Depends(get_db)) -> dict:
     """Reanalyse the index and refresh pending suggestions."""
-    return sorter.compute_suggestions(db)
+    try:
+        with mutation_lock():
+            return sorter.compute_suggestions(db)
+    except ScanInProgressError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.post("/suggestions/{suggestion_id}/apply")
 def apply_suggestion(suggestion_id: int, db: Session = Depends(get_db)) -> dict:
     try:
-        return sorter.apply_suggestion(db, suggestion_id)
+        with mutation_lock():
+            return sorter.apply_suggestion(db, suggestion_id)
+    except ScanInProgressError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/suggestions/{suggestion_id}/reject")
 def reject_suggestion(suggestion_id: int, db: Session = Depends(get_db)) -> dict:
-    s = db.get(Suggestion, suggestion_id)
-    if s is None:
-        raise HTTPException(status_code=404, detail="Suggestion introuvable")
-    s.status = "rejected"
-    db.commit()
-    return {"rejected": suggestion_id}
+    try:
+        with mutation_lock():
+            s = db.get(Suggestion, suggestion_id)
+            if s is None:
+                raise HTTPException(status_code=404, detail="Suggestion introuvable")
+            s.status = "rejected"
+            db.commit()
+            return {"rejected": suggestion_id}
+    except ScanInProgressError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

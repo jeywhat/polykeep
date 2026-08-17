@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "./api/client.js";
 import Toolbar from "./components/Toolbar.jsx";
 import FileGrid from "./components/FileGrid.jsx";
@@ -7,6 +7,15 @@ import SortPanel from "./components/SortPanel.jsx";
 import FolderTree from "./components/FolderTree.jsx";
 import Breadcrumb from "./components/Breadcrumb.jsx";
 
+const ACTIVE_SCAN_PHASES = new Set([
+  "discovery",
+  "db_upsert",
+  "missing_mark",
+  "thumbnails",
+  "apply_results",
+  "suggestions",
+]);
+
 export default function App() {
   const [files, setFiles] = useState([]);
   const [total, setTotal] = useState(0);
@@ -14,6 +23,8 @@ export default function App() {
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(null);
+  const scanOwner = useRef(false);
 
   // Filters
   const [query, setQuery] = useState("");
@@ -70,6 +81,47 @@ export default function App() {
     }
   }, []);
 
+  // Poll scan progress while scanning
+  useEffect(() => {
+    if (!scanning) {
+      setScanProgress(null);
+      return;
+    }
+    let cancelled = false;
+    async function poll() {
+      while (!cancelled) {
+        try {
+          const prog = await api.scanProgress();
+          if (cancelled) return;
+          setScanProgress(prog);
+          if (!scanOwner.current && (prog.phase === "complete" || prog.phase === "error")) {
+            setScanning(false);
+            return;
+          }
+        } catch {
+          /* ignore */
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+    poll();
+    return () => { cancelled = true; };
+  }, [scanning]);
+
+  // Resume displaying a scan started in another tab before this page loaded.
+  useEffect(() => {
+    let cancelled = false;
+    api.scanProgress().then((prog) => {
+      if (!cancelled && !scanOwner.current && ACTIVE_SCAN_PHASES.has(prog.phase)) {
+        setScanProgress(prog);
+        setScanning(true);
+      }
+    }).catch(() => {
+      /* no active scan or backend unavailable */
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     loadFiles();
   }, [loadFiles]);
@@ -86,13 +138,18 @@ export default function App() {
   }, [query]);
 
   async function handleScan() {
+    scanOwner.current = true;
     setScanning(true);
     try {
       const res = await api.scan();
-      notify(
+      const message =
         `Scan terminé : ${res.scanned} fichiers, ${res.added} nouveaux, ` +
-        `${res.missing} manquants.`,
-        "success"
+        `${res.missing} manquants.`;
+      notify(
+        res.suggestions_error
+          ? `${message} Suggestions non recalculées : ${res.suggestions_error}`
+          : message,
+        res.suggestions_error ? "error" : "success"
       );
       setRefreshKey((k) => k + 1);
       await loadFiles();
@@ -101,6 +158,7 @@ export default function App() {
     } catch (e) {
       notify(e.message, "error");
     } finally {
+      scanOwner.current = false;
       setScanning(false);
     }
   }
@@ -188,6 +246,7 @@ export default function App() {
             total={total}
             onScan={handleScan}
             scanning={scanning}
+            scanProgress={scanProgress}
           />
           <FileGrid
             files={files}
