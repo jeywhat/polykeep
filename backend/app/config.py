@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     # --- Paths (Docker volume mounts) -------------------------------------
     config_dir: Path = Path("/config")
     storage_dir: Path = Path("/storage")
+    # Comma-separated directories discovered by the import screen.
+    watch_dirs: str = ""
 
     # --- Tunables for the sort engine -------------------------------------
     similarity_threshold: float = 0.6  # difflib ratio above which two file

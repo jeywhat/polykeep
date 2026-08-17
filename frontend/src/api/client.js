@@ -77,4 +77,23 @@ export const api = {
 
   // Scan progress
   scanProgress: () => request("/scan/progress"),
+
+  watchDirs: () => request("/imports/config"),
+  saveWatchDirs: (paths) =>
+    request("/imports/config", { method: "PUT", body: { paths } }),
+  listImports: () => request("/imports"),
+  importFiles: (sourcePaths, mode = "copy") =>
+    request("/imports", { method: "POST", body: { source_paths: sourcePaths, mode } }),
+  uploadImports: async (files, manifest) => {
+    const form = new FormData();
+    files.forEach((file) => form.append("files", file, file.name));
+    form.append("manifest", JSON.stringify(manifest));
+    const res = await fetch(`${BASE}/imports/upload`, { method: "POST", body: form });
+    if (!res.ok) {
+      let detail = `${res.status} ${res.statusText}`;
+      try { detail = (await res.json()).detail || detail; } catch { /* not JSON */ }
+      throw new Error(detail);
+    }
+    return res.json();
+  },
 };

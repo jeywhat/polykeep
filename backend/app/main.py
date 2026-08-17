@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import get_db, init_db
-from .routers import files, preview, scan, sort
+from .routers import files, imports, preview, scan, sort
 
 app = FastAPI(title="PolyKeep", version="1.0.0")
 
@@ -29,6 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(scan.router, prefix="/api", tags=["scan"])
+app.include_router(imports.router, prefix="/api", tags=["imports"])
 app.include_router(files.router, prefix="/api", tags=["files"])
 app.include_router(sort.router, prefix="/api", tags=["sort"])
 app.include_router(preview.router, prefix="/api", tags=["preview"])

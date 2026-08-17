@@ -70,6 +70,37 @@ class ScanResultOut(BaseModel):
     suggestions_error: str | None = None
 
 
+class WatchDirsOut(BaseModel):
+    paths: list[str]
+
+
+class ImportFileOut(BaseModel):
+    source_path: str
+    name: str
+    size: int
+    source_dir: str
+    presumed_source: str | None = None
+
+
+class ImportRequest(BaseModel):
+    source_paths: list[str] = Field(min_length=1)
+    mode: str = "copy"
+
+    @field_validator("mode")
+    @classmethod
+    def _validate_mode(cls, value: str) -> str:
+        if value not in {"copy", "move"}:
+            raise ValueError("Le mode doit être copy ou move")
+        return value
+
+
+class ImportResultOut(BaseModel):
+    imported: int
+    skipped: int
+    scan: ScanResultOut
+    errors: list[str] = Field(default_factory=list)
+
+
 class SuggestionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

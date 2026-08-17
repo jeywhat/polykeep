@@ -6,6 +6,7 @@ import PreviewModal from "./components/PreviewModal.jsx";
 import SortPanel from "./components/SortPanel.jsx";
 import FolderTree from "./components/FolderTree.jsx";
 import Breadcrumb from "./components/Breadcrumb.jsx";
+import ImportPanel from "./components/ImportPanel.jsx";
 
 const ACTIVE_SCAN_PHASES = new Set([
   "discovery",
@@ -38,6 +39,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [draggingFile, setDraggingFile] = useState(null);
+  const [view, setView] = useState("library");
 
   const notify = useCallback((message, kind = "info") => {
     setToast({ message, kind });
@@ -214,11 +216,18 @@ export default function App() {
     <div className="app">
       <div className="topbar">
         <span className="brand">⬢ PolyKeep</span>
-        <span className="spacer" />
-        <span className="count">{total} fichiers indexés</span>
+         <span className="spacer" />
+         <button onClick={() => setView(view === "library" ? "imports" : "library")}>
+           {view === "library" ? "Importer" : "Bibliothèque"}
+         </button>
+         <span className="count">{total} fichiers indexés</span>
       </div>
 
-      <div className="main">
+      {view === "imports" ? <main className="import-content"><ImportPanel notify={notify} onImported={async () => {
+        setRefreshKey((k) => k + 1);
+        await loadFiles();
+        await loadFolders();
+      }} /></main> : <div className="main">
         <aside className="folder-rail">
           <div className="rail-header">Dossiers</div>
           <FolderTree
@@ -272,7 +281,7 @@ export default function App() {
             refreshKey={refreshKey}
           />
         </div>
-      </div>
+      </div>}
 
       {selected && (
         <PreviewModal
