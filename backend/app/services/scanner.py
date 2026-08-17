@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..models import File, FileTag, Tag
 from .hasher import sha256_of
+from .fingerprint import compute_fingerprint
 from .lys_parser import extract_thumbnail
 from .mesh_renderer import can_render, render_mesh
 from .paths import storage_root
@@ -53,6 +54,7 @@ class _ExtraTask:
     path: Path
     ext: str
     compute_hash: bool
+    compute_fingerprint: bool
     compute_thumbnail: bool
 
 
@@ -60,6 +62,7 @@ class _ExtraTask:
 class _ExtraResult:
     file_id: int
     hash: str | None = None
+    fingerprint: str | None = None
     thumbnail_path: str | None = None
 
 
@@ -220,10 +223,11 @@ def _thumbnail_exists(file_obj: File) -> bool:
 
 def _needs_extra_work(file_obj: File) -> bool:
     needs_hash = file_obj.ext == "stl" and not file_obj.hash
+    needs_fingerprint = can_render(file_obj.ext) and not file_obj.fingerprint
     needs_thumbnail = (
         file_obj.ext == "lys" or can_render(file_obj.ext)
     ) and not _thumbnail_exists(file_obj)
-    return needs_hash or needs_thumbnail
+    return needs_hash or needs_fingerprint or needs_thumbnail
 
 
 def scan_storage(
@@ -331,6 +335,7 @@ def scan_storage(
                     )
                     # Do not retain metadata belonging to the previous bytes.
                     existing.hash = None
+                    existing.fingerprint = None
                     existing.thumbnail_path = None
                 if existing.status == "missing":
                     existing.status = "unsorted"
@@ -441,6 +446,7 @@ def _make_extra_task(file_obj: File, path: Path, force: bool = False) -> _ExtraT
         path=path,
         ext=file_obj.ext,
         compute_hash=file_obj.ext == "stl" and (force or not file_obj.hash),
+        compute_fingerprint=can_render(file_obj.ext) and (force or not file_obj.fingerprint),
         compute_thumbnail=force or not _thumbnail_exists(file_obj),
     )
 
@@ -500,12 +506,14 @@ def _apply_extra_results(session: Session, results: list[_ExtraResult]) -> None:
             continue
         if result.hash:
             file_obj.hash = result.hash
+        if result.fingerprint:
+            file_obj.fingerprint = result.fingerprint
         if result.thumbnail_path:
             file_obj.thumbnail_path = result.thumbnail_path
 
 
 def _index_extras(task: _ExtraTask) -> _ExtraResult:
-    """Compute hash (STL) and thumbnail (STL + LYS) for a file.
+    """Compute hash, geometry fingerprint and thumbnail for a file.
 
     Hashing is only done for STL files; ``.lys`` are ZIP archives whose hash is
     less useful for de-dup detection (the embedded metadata differs), so we
@@ -519,6 +527,7 @@ def _index_extras(task: _ExtraTask) -> _ExtraResult:
     """
     hash_value: str | None = None
     thumbnail_path: str | None = None
+    fingerprint: str | None = None
 
     # Hash
     if task.compute_hash:
@@ -526,6 +535,9 @@ def _index_extras(task: _ExtraTask) -> _ExtraResult:
             hash_value = sha256_of(task.path)
         except OSError:
             pass
+
+    if task.compute_fingerprint:
+        fingerprint = compute_fingerprint(task.path)
 
     # Thumbnail (LYS: embedded image, STL/OBJ/PLY/GLTF/etc: rendered PNG).
     if task.compute_thumbnail:
@@ -542,5 +554,6 @@ def _index_extras(task: _ExtraTask) -> _ExtraResult:
     return _ExtraResult(
         file_id=task.file_id,
         hash=hash_value,
+        fingerprint=fingerprint,
         thumbnail_path=thumbnail_path,
     )

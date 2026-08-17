@@ -117,13 +117,22 @@ def get_file_open_info(file_id: int, db: Session = Depends(get_db)):
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Chemin de fichier invalide") from exc
 
+    local_path = str(safe_join(f.rel_path, ensure_root=False))
     smb_path = None
-    if settings.smb_root:
+    if settings.smb_root and settings.open_mode in {"auto", "smb"}:
         root = settings.smb_root.replace("/", "\\").rstrip("\\")
         rel_path = f.rel_path.replace("/", "\\").lstrip("\\")
         smb_path = f"{root}\\{rel_path}"
+    selected_mode = "smb" if smb_path else "local"
+    if settings.open_mode == "smb" and not smb_path:
+        selected_mode = "smb"
     return FileOpenInfoOut(
-        id=f.id, name=f.name, rel_path=f.rel_path, smb_unc_path=smb_path
+        id=f.id,
+        name=f.name,
+        rel_path=f.rel_path,
+        smb_unc_path=smb_path,
+        open_path=smb_path or (local_path if selected_mode == "local" else None),
+        open_mode=selected_mode,
     )
 
 

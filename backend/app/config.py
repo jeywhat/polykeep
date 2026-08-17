@@ -6,6 +6,7 @@ same image runs identically in local dev and on the Unraid container.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -20,6 +21,8 @@ class Settings(BaseSettings):
     smb_root: str | None = None
     # Public URL used by the Windows helper and installer defaults.
     base_url: str | None = None
+    # auto = SMB when T3D_SMB_ROOT is set, otherwise local filesystem path.
+    open_mode: Literal["auto", "local", "smb"] = "auto"
     # Comma-separated directories discovered by the import screen.
     watch_dirs: str = ""
 

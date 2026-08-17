@@ -87,21 +87,32 @@ try {
     } catch {
         throw "Impossible de joindre le NAS ou de récupérer le fichier (délai : 10 secondes). $($_.Exception.Message)"
     }
-    $unc = [string]$info.smb_unc_path
-    if (!$unc -and $config.smbRoot) {
-        $unc = "{0}\{1}" -f ([string]$config.smbRoot).TrimEnd('\', '/'), ([string]$info.rel_path).Replace('/', '\').TrimStart('\')
+    $openPath = [string]$info.open_path
+    $openMode = [string]$info.open_mode
+    if (!$openPath -and $info.smb_unc_path) {
+        $openPath = [string]$info.smb_unc_path
+        $openMode = "smb"
     }
-    if (!$unc) { throw "Le NAS n'expose pas de chemin SMB. Configurez T3D_SMB_ROOT." }
-    if (!$unc.StartsWith('\\') -or $unc -match '(^|\\)\.\.([\\]|$)') { throw "Chemin SMB invalide." }
-    if (!(Test-Path -LiteralPath $unc -PathType Leaf)) { throw "Fichier introuvable sur le partage SMB : $unc" }
+    if (!$openPath -and $openMode -eq "smb" -and $config.smbRoot) {
+        $openPath = "{0}\{1}" -f ([string]$config.smbRoot).TrimEnd('\', '/'), ([string]$info.rel_path).Replace('/', '\').TrimStart('\')
+    }
+    if (!$openPath) {
+        throw "Aucun chemin d'ouverture disponible. Configurez T3D_SMB_ROOT ou T3D_OPEN_MODE=local."
+    }
+    if ($openMode -eq "smb" -or $openPath.StartsWith('\\')) {
+        if (!$openPath.StartsWith('\\') -or $openPath -match '(^|\\)\.\.([\\]|$)') { throw "Chemin SMB invalide." }
+    } elseif ($openPath -match '^(https?|polykeep):' -or $openPath -match '(^|[\\/])\.\.([\\/]|$)') {
+        throw "Chemin local invalide."
+    }
+    if (!(Test-Path -LiteralPath $openPath -PathType Leaf)) { throw "Fichier introuvable : $openPath" }
 
     $bambu = Find-BambuStudio $config
     if ($bambu) {
-        Start-Process -FilePath $bambu -ArgumentList @($unc)
-        Write-HelperLog "SUCCES id=$id bambu=$bambu path=$unc"
+        Start-Process -FilePath $bambu -ArgumentList @($openPath)
+        Write-HelperLog "SUCCES id=$id mode=$openMode bambu=$bambu path=$openPath"
     } else {
-        Invoke-Item -LiteralPath $unc
-        Write-HelperLog "SUCCES id=$id gestionnaire-defaut path=$unc"
+        Invoke-Item -LiteralPath $openPath
+        Write-HelperLog "SUCCES id=$id mode=$openMode gestionnaire-defaut path=$openPath"
     }
 } catch {
     Show-HelperError $_.Exception.Message

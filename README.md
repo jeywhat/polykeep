@@ -207,6 +207,7 @@ Préfixe `T3D_`. Toutes sont optionnelles (valeurs par défaut indiquées).
 | `T3D_STORAGE_DIR` | `/storage` | Dossier racine des fichiers |
 | `T3D_SMB_ROOT` | *(vide)* | Chemin UNC Windows correspondant à `/storage` |
 | `T3D_BASE_URL` | *(vide)* | URL publique du NAS utilisée par le helper |
+| `T3D_OPEN_MODE` | `auto` | Ouverture `local`, `smb`, ou automatique selon `T3D_SMB_ROOT` |
 | `T3D_SIMILARITY_THRESHOLD` | `0.6` | Seuil de similarité des noms (0–1) |
 | `T3D_SCAN_WORKERS` | `0` | Workers pour hash/vignettes (`0` = auto, `1` = séquentiel) |
 | `T3D_SORTED_SUBDIR` | `Trié` | Sous-dossier pour les fichiers triés |
@@ -243,10 +244,15 @@ affiche tout.
 
 ### Ouverture locale dans Bambu Studio
 
-Configurez `T3D_SMB_ROOT` avec le chemin UNC du partage monté dans `/storage`,
-puis exécutez `helper/install-helper.ps1` sur le PC Windows. Le protocole
-utilisateur `polykeep://` appelle le helper, qui récupère l'information depuis
-le NAS et ouvre directement le fichier sur le partage SMB.
+Sur Docker/NAS, configurez `T3D_OPEN_MODE=smb` et `T3D_SMB_ROOT` avec le chemin
+UNC du partage monté dans `/storage`. En local sur Windows, utilisez
+`T3D_OPEN_MODE=local` : le backend renvoie directement le chemin local et aucun
+chemin SMB n'est nécessaire. Avec `auto`, SMB est utilisé si `T3D_SMB_ROOT` est
+défini, sinon le chemin local est utilisé.
+
+Dans les deux cas, exécutez `helper/install-helper.ps1` sur le PC Windows. Le
+protocole utilisateur `polykeep://` appelle le helper, qui récupère
+l'information depuis le backend et ouvre le fichier avec Bambu Studio.
 
 ---
 

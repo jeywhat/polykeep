@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker, declarative_base
 
@@ -46,6 +46,12 @@ def init_db() -> None:
     from . import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    # ``create_all`` does not add columns to an existing SQLite database.
+    with engine.begin() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("files")}
+        if "fingerprint" not in columns:
+            connection.execute(text("ALTER TABLE files ADD COLUMN fingerprint VARCHAR(80)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_files_fingerprint ON files (fingerprint)"))
 
 
 def get_db() -> Iterator[Session]:

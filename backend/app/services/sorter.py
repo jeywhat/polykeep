@@ -7,7 +7,7 @@ All sorting happens in two phases:
      confirms. It is the ONLY place that relocates/deletes files.
 
 Suggestion payload shapes (JSON):
-  - type 'duplicate': {"file_ids": [...], "keep_id": int, "reason": str}
+  - type 'duplicate'/'same_model': {"file_ids": [...], "keep_id": int, "reason": str}
         apply => soft-delete the non-keep files (move to /storage/.trash).
   - type 'group':     {"file_ids": [...], "folder": str}
         apply => create /storage/<folder> and move the files in.
@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..models import File, Suggestion
 from .grouper import group_by_prefix, group_by_similarity, suggested_group_name
+from .fingerprint import fingerprints_match
 from .paths import safe_join, storage_root, to_rel
 
 
@@ -53,6 +54,7 @@ def compute_suggestions(session: Session) -> dict:
 
     created = 0
     created += _detect_duplicates(session, files)
+    created += _detect_same_models(session, files)
     created += _detect_groups(session, files)
 
     session.commit()
@@ -85,6 +87,51 @@ def _detect_duplicates(session: Session, files: list[File]) -> int:
                 Suggestion(type="duplicate", payload=json.dumps(payload))
             )
             count += 1
+    return count
+
+
+def _detect_same_models(session: Session, files: list[File]) -> int:
+    """Group close geometry fingerprints across different file formats."""
+    hashed_ids = {
+        f.id
+        for f in files
+        if f.ext == "stl" and f.hash
+        and any(other.id != f.id and other.ext == "stl" and other.hash == f.hash for other in files)
+    }
+    candidates = [f for f in files if f.fingerprint and f.id not in hashed_ids]
+    buckets: dict[str, list[File]] = defaultdict(list)
+    for file_obj in candidates:
+        buckets[file_obj.fingerprint[:6]].append(file_obj)
+
+    count = 0
+    for bucket in buckets.values():
+        clusters: list[list[File]] = []
+        for file_obj in bucket:
+            matching = [cluster for cluster in clusters if any(
+                fingerprints_match(file_obj.fingerprint, member.fingerprint)
+                for member in cluster
+            )]
+            if matching:
+                matching[0].append(file_obj)
+                for other in matching[1:]:
+                    matching[0].extend(other)
+                    clusters.remove(other)
+            else:
+                clusters.append([file_obj])
+        for cluster in clusters:
+            formats = sorted({file_obj.ext.upper() for file_obj in cluster})
+            if len(cluster) < 2 or len(formats) < 2:
+                continue
+            cluster.sort(key=lambda file_obj: file_obj.id)
+            payload = {
+                "file_ids": [file_obj.id for file_obj in cluster],
+                "keep_id": cluster[0].id,
+                "formats": formats,
+                "reason": "Même modèle, format différent — " + ", ".join(formats),
+            }
+            if _existing_pending(session, "same_model", payload) is None:
+                session.add(Suggestion(type="same_model", payload=json.dumps(payload)))
+                count += 1
     return count
 
 
@@ -140,7 +187,7 @@ def apply_suggestion(session: Session, suggestion_id: int) -> dict:
         raise ValueError(f"Suggestion déjà {s.status}")
 
     payload = json.loads(s.payload)
-    if s.type == "duplicate":
+    if s.type in {"duplicate", "same_model"}:
         result = _apply_duplicate(session, payload)
     elif s.type == "group":
         result = _apply_group(session, payload)

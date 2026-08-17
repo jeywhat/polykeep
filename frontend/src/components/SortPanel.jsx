@@ -3,6 +3,7 @@ import { api } from "../api/client.js";
 
 const TYPE_LABEL = {
   duplicate: "Doublon",
+  same_model: "Même modèle",
   group: "Regroupement",
   move: "Déplacement",
 };
@@ -40,6 +41,9 @@ function SuggestionCard({ s, fileMap, onApply, onReject, busy }) {
           <span>
             garder : {fileMap[s.payload.keep_id]?.name || `#${s.payload.keep_id}`}
           </span>
+        )}
+        {s.type === "same_model" && (
+          <span>même modèle, format différent ({s.payload.formats?.join(", ")})</span>
         )}
       </div>
       <div className="s-reason">{s.payload.reason}</div>
@@ -127,7 +131,7 @@ export default function SortPanel({ notify, onChanged, refreshKey }) {
   }
 
   const groups = {
-    duplicate: suggestions.filter((s) => s.type === "duplicate"),
+    duplicate: suggestions.filter((s) => ["duplicate", "same_model"].includes(s.type)),
     group: suggestions.filter((s) => s.type === "group"),
     move: suggestions.filter((s) => s.type === "move"),
   };
@@ -151,7 +155,7 @@ export default function SortPanel({ notify, onChanged, refreshKey }) {
       )}
       {groups.duplicate.length > 0 && (
         <div className="sb-section">
-          <h3>Doublons détectés</h3>
+           <h3>Doublons détectés</h3>
           {groups.duplicate.map((s) => (
             <SuggestionCard
               key={s.id}

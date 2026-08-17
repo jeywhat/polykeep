@@ -56,8 +56,8 @@ export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd
     if (!canOpen) return;
     try {
       const info = await api.openInStudio(file.id);
-      if (!info.smb_unc_path) {
-        notify?.("Chemin SMB non configuré côté NAS (T3D_SMB_ROOT).", "info");
+      if (!info.open_path) {
+        notify?.("Aucun chemin d'ouverture configuré (T3D_OPEN_MODE/T3D_SMB_ROOT).", "info");
         return;
       }
       localStorage.setItem("polykeep-helper-hint-seen", "1");

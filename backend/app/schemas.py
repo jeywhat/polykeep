@@ -25,6 +25,7 @@ class FileOut(BaseModel):
     ext: str
     size: int
     hash: str | None = None
+    fingerprint: str | None = None
     status: str
     thumbnail_path: str | None = None
     file_created: dt.datetime | None = None
@@ -61,6 +62,8 @@ class FileOpenInfoOut(BaseModel):
     name: str
     rel_path: str
     smb_unc_path: str | None = None
+    open_path: str | None = None
+    open_mode: str
 
 
 class FolderOut(BaseModel):

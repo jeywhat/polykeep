@@ -31,6 +31,8 @@ class File(Base):
     ext: Mapped[str] = mapped_column(String(8), index=True)  # 'stl' | 'lys'
     size: Mapped[int] = mapped_column(Integer, default=0)
     hash: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    # Normalized geometry signature for cross-format duplicate detection.
+    fingerprint: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     # unsorted | sorted | archived | deleted | missing
     status: Mapped[str] = mapped_column(String(16), default="unsorted", index=True)
     thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
