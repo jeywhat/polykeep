@@ -20,6 +20,7 @@ class FileOut(BaseModel):
     id: int
     rel_path: str
     name: str
+    display_name: str = ""
     parent_dir: str
     ext: str
     size: int

@@ -12,6 +12,35 @@ export function formatSize(bytes) {
   return `${val.toFixed(val >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+const DISPLAY_ACRONYMS = {
+  wh40k: "WH40K", stl: "STL", obj: "OBJ", ply: "PLY", glb: "GLB",
+  gltf: "GLTF", "3mf": "3MF", fbx: "FBX", dae: "DAE", amf: "AMF",
+};
+
+/** Display-only equivalent of the backend humanizer for older API responses. */
+export function humanize_name(name, tags = [], ext = "") {
+  let value = String(name || "").replace(/(?:https?:\/\/|www\.)\S+/gi, " ");
+  if (ext && value.toLowerCase().endsWith(`.${ext.toLowerCase()}`)) value = value.slice(0, -(ext.length + 1));
+  else value = value.replace(/\.[a-z0-9]{2,5}$/i, "");
+  const support = /pre[ _.-]*support(?:ed)?/i;
+  let annotated = support.test(value) || tags.some((tag) => /pre[ _.-]*support/i.test(tag));
+  let previous;
+  do {
+    previous = value;
+    value = value.replace(/(?:[ _.-]+(?:v\d+|version[ _.-]*\d+|final|new)|[ _.-]*\(\d+\))$/i, "");
+  } while (value !== previous);
+  value = value.replace(/pre[ _.-]*support(?:ed)?/gi, " ");
+  value = value.replace(/[_.-]+/g, " ").replace(/\s+/g, " ").trim();
+  const words = value.split(" ").filter(Boolean).flatMap((word) => {
+    if (support.test(word)) { annotated = true; return []; }
+    const key = word.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return [DISPLAY_ACRONYMS[key] || `${word[0].toUpperCase()}${word.slice(1).toLowerCase()}`];
+  });
+  let result = words.join(" ") || name || "Fichier";
+  if (annotated && !result.toLowerCase().includes("pré-supporté")) result += " (pré-supporté)";
+  return result;
+}
+
 export function statusLabel(status) {
   const map = {
     unsorted: "À trier",

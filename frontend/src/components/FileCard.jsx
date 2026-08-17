@@ -1,4 +1,4 @@
-import { formatSize, statusLabel, relativeDirLabel } from "../utils.js";
+import { formatSize, humanize_name, statusLabel, relativeDirLabel } from "../utils.js";
 import { api } from "../api/client.js";
 import { useRef, useState } from "react";
 
@@ -19,6 +19,7 @@ const EXT_COLORS = {
 export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd }) {
   const extColor = EXT_COLORS[file.ext] || "var(--stl)";
   const relDir = relativeDirLabel(file.parent_dir, folder);
+  const displayName = file.display_name || humanize_name(file.name, file.tags, file.ext);
   const [dragging, setDragging] = useState(false);
   const suppressClick = useRef(false);
   const canDrag = !["deleted", "missing"].includes(file.status);
@@ -60,7 +61,7 @@ export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd
     >
       <div className="thumb">
         {file.preview_url ? (
-          <img src={api.thumbUrl(file.id)} alt={file.name} />
+          <img src={api.thumbUrl(file.id)} alt={displayName} />
         ) : (
           <span className="ext-badge" style={{ color: extColor }}>
             {file.ext.toUpperCase()}
@@ -68,7 +69,7 @@ export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd
         )}
       </div>
       <div className="name" title={file.name}>
-        {file.name}
+        {displayName}
       </div>
       {relDir && (
         <div className="card-dir" title={file.parent_dir}>

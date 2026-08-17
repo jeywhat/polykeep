@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ModelViewer from "./ModelViewer.jsx";
 import { api } from "../api/client.js";
-import { formatSize, statusLabel } from "../utils.js";
+import { formatSize, humanize_name, statusLabel } from "../utils.js";
 
 // Formats that can be previewed in the 3D viewer
 const VIEWABLE_3D = ["stl", "obj", "ply", "gltf", "glb", "dae", "fbx", "3mf"];
@@ -13,6 +13,7 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
   const [modelInfo, setModelInfo] = useState(null);
   const isViewable3D = VIEWABLE_3D.includes(file.ext);
   const hasThumbnail = THUMBNAIL_FORMATS.includes(file.ext) && file.preview_url;
+  const displayName = file.display_name || humanize_name(file.name, file.tags, file.ext);
 
   if (!file) return null;
 
@@ -31,7 +32,7 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
   }
 
   async function handleDelete() {
-    if (!confirm(`Mettre à la corbeille « ${file.name} » ? (récupérable)`)) return;
+    if (!confirm(`Mettre à la corbeille « ${displayName} » ? (récupérable)`)) return;
     try {
       const updated = await api.deleteFile(file.id);
       notify("Fichier mis à la corbeille.", "success");
@@ -46,7 +47,7 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 title={file.name}>{file.name}</h2>
+          <h2 title={file.name}>{displayName}</h2>
           <button onClick={onClose}>✕ Fermer</button>
         </div>
         <div className="modal-body">
@@ -57,7 +58,7 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
               <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <img
                   src={api.thumbUrl(file.id)}
-                  alt={file.name}
+                  alt={displayName}
                   style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
                 />
               </div>
@@ -72,6 +73,10 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
             )}
           </div>
           <div className="viewer-info">
+            <div className="info-row">
+              <div className="info-label">Nom du fichier</div>
+              <div className="info-value">{file.name}</div>
+            </div>
             <div className="info-row">
               <div className="info-label">Format</div>
               <div className="info-value">

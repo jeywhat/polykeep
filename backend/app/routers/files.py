@@ -9,6 +9,7 @@ from ..database import get_db
 from ..models import File, FileTag, Tag
 from ..schemas import FileListOut, FileOut, FolderOut, MoveRequest, TagRequest
 from ..services.paths import safe_join
+from ..services.names import humanize_name
 from ..services.scan_progress import ScanInProgressError, mutation_lock
 from ..services.sorter import move_file, move_to_trash
 
@@ -18,6 +19,7 @@ router = APIRouter()
 def _file_to_out(f: File) -> FileOut:
     out = FileOut.model_validate(f)
     out.tags = [ft.tag.name for ft in f.tags if ft.tag]
+    out.display_name = humanize_name(f.name, out.tags, f.ext)
     # Thumbnail URL (works for both rendered STL and extracted LYS images).
     if f.thumbnail_path:
         out.preview_url = f"/api/preview/thumb/{f.id}"
