@@ -266,6 +266,7 @@ export default function App() {
             onDragEnd={() => setDraggingFile(null)}
             onDropFile={handleDropMove}
             loading={loading}
+            notify={notify}
           />
         </div>
 

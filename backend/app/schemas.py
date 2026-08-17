@@ -56,6 +56,13 @@ class FileListOut(BaseModel):
     page_size: int
 
 
+class FileOpenInfoOut(BaseModel):
+    id: int
+    name: str
+    rel_path: str
+    smb_unc_path: str | None = None
+
+
 class FolderOut(BaseModel):
     """A distinct ``parent_dir`` with the number of files it (directly) holds."""
     path: str

@@ -11,6 +11,7 @@ export default function FileGrid({
   onDragEnd,
   onDropFile,
   loading,
+  notify,
 }) {
   const [dropTarget, setDropTarget] = useState(null);
 
@@ -72,6 +73,7 @@ export default function FileGrid({
                   onClick={onSelect}
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
+                  notify={notify}
                 />
               ))}
             </div>
@@ -103,6 +105,7 @@ export default function FileGrid({
                   onClick={onSelect}
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
+                  notify={notify}
                 />
               ))}
             </div>

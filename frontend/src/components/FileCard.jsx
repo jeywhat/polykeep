@@ -16,13 +16,14 @@ const EXT_COLORS = {
   amf: "var(--amf, #f39c12)",
 };
 
-export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd }) {
+export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd, notify }) {
   const extColor = EXT_COLORS[file.ext] || "var(--stl)";
   const relDir = relativeDirLabel(file.parent_dir, folder);
   const displayName = file.display_name || humanize_name(file.name, file.tags, file.ext);
   const [dragging, setDragging] = useState(false);
   const suppressClick = useRef(false);
   const canDrag = !["deleted", "missing"].includes(file.status);
+  const canOpen = !["deleted", "missing"].includes(file.status);
 
   function handleDragStart(e) {
     if (!canDrag) {
@@ -50,6 +51,23 @@ export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd
     onClick(file);
   }
 
+  async function handleOpen(e) {
+    e.stopPropagation();
+    if (!canOpen) return;
+    try {
+      const info = await api.openInStudio(file.id);
+      if (!info.smb_unc_path) {
+        notify?.("Chemin SMB non configuré côté NAS (T3D_SMB_ROOT).", "info");
+        return;
+      }
+      localStorage.setItem("polykeep-helper-hint-seen", "1");
+      notify?.("Si rien ne s'ouvre, lancez install-helper.ps1 sur votre PC.", "info");
+      window.location.href = `polykeep://open?id=${file.id}&host=${encodeURIComponent(window.location.origin)}`;
+    } catch (e) {
+      notify?.(e.message, "error");
+    }
+  }
+
   return (
     <div
       className={`card ${dragging ? "dragging" : ""}`}
@@ -67,6 +85,13 @@ export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd
             {file.ext.toUpperCase()}
           </span>
         )}
+        <button
+          className="open-studio-icon"
+          onClick={handleOpen}
+          disabled={!canOpen}
+          title={canOpen ? "Ouvrir dans Bambu Studio" : "Fichier indisponible"}
+          aria-label="Ouvrir dans Bambu Studio"
+        >↗</button>
       </div>
       <div className="name" title={file.name}>
         {displayName}

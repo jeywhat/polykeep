@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     # --- Paths (Docker volume mounts) -------------------------------------
     config_dir: Path = Path("/config")
     storage_dir: Path = Path("/storage")
+    # Windows SMB path corresponding to storage_dir, e.g. \\nas\3d\storage.
+    smb_root: str | None = None
+    # Public URL used by the Windows helper and installer defaults.
+    base_url: str | None = None
     # Comma-separated directories discovered by the import screen.
     watch_dirs: str = ""
 

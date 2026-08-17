@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import File, FileTag, Tag
-from ..schemas import FileListOut, FileOut, FolderOut, MoveRequest, TagRequest
+from ..config import settings
+from ..schemas import FileListOut, FileOpenInfoOut, FileOut, FolderOut, MoveRequest, TagRequest
 from ..services.paths import safe_join
 from ..services.names import humanize_name
 from ..services.scan_progress import ScanInProgressError, mutation_lock
@@ -96,6 +97,34 @@ def get_file(file_id: int, db: Session = Depends(get_db)):
     if f is None:
         raise HTTPException(status_code=404, detail="Fichier introuvable")
     return _file_to_out(f)
+
+
+@router.get("/files/{file_id}/open-info", response_model=FileOpenInfoOut)
+def get_file_open_info(file_id: int, db: Session = Depends(get_db)):
+    """Return the safe SMB location used by the native Windows helper."""
+    f = db.get(File, file_id)
+    if f is None:
+        raise HTTPException(status_code=404, detail="Fichier introuvable")
+    if f.status in {"deleted", "missing"}:
+        raise HTTPException(status_code=400, detail="Ce fichier est supprimé ou manquant")
+
+    # Validate the database value before exposing it. No client-supplied path
+    # participates in this operation.
+    if any(part == ".." for part in f.rel_path.replace("\\", "/").split("/")):
+        raise HTTPException(status_code=404, detail="Chemin de fichier invalide")
+    try:
+        safe_join(f.rel_path, ensure_root=False)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Chemin de fichier invalide") from exc
+
+    smb_path = None
+    if settings.smb_root:
+        root = settings.smb_root.replace("/", "\\").rstrip("\\")
+        rel_path = f.rel_path.replace("/", "\\").lstrip("\\")
+        smb_path = f"{root}\\{rel_path}"
+    return FileOpenInfoOut(
+        id=f.id, name=f.name, rel_path=f.rel_path, smb_unc_path=smb_path
+    )
 
 
 @router.post("/files/{file_id}/move", response_model=FileOut)

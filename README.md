@@ -205,6 +205,8 @@ Préfixe `T3D_`. Toutes sont optionnelles (valeurs par défaut indiquées).
 | -------- | ------ | ---- |
 | `T3D_CONFIG_DIR` | `/config` | Emplacement de la BDD |
 | `T3D_STORAGE_DIR` | `/storage` | Dossier racine des fichiers |
+| `T3D_SMB_ROOT` | *(vide)* | Chemin UNC Windows correspondant à `/storage` |
+| `T3D_BASE_URL` | *(vide)* | URL publique du NAS utilisée par le helper |
 | `T3D_SIMILARITY_THRESHOLD` | `0.6` | Seuil de similarité des noms (0–1) |
 | `T3D_SCAN_WORKERS` | `0` | Workers pour hash/vignettes (`0` = auto, `1` = séquentiel) |
 | `T3D_SORTED_SUBDIR` | `Trié` | Sous-dossier pour les fichiers triés |
@@ -225,6 +227,7 @@ Documentation interactive : **http://IP:8000/docs** (Swagger UI).
 | `GET`  | `/api/files` | Liste filtrée (`?status=&tag=&q=&ext=&folder=&page=`) |
 | `GET`  | `/api/folders` | Arborescence des dossiers (path + count) |
 | `GET`  | `/api/files/{id}` | Détail d'un fichier |
+| `GET`  | `/api/files/{id}/open-info` | Informations SMB pour l'ouverture locale |
 | `POST` | `/api/files/{id}/move` | Déplacer (`{"target_dir": "Trié/…"}`) |
 | `POST` | `/api/files/{id}/delete` | Mettre à la corbeille |
 | `GET`  | `/api/preview/stl/{id}` | Flux binaire du STL |
@@ -237,6 +240,13 @@ Documentation interactive : **http://IP:8000/docs** (Swagger UI).
 Le paramètre `?folder=Imprimantes/Voron` filtre les fichiers de ce dossier **et**
 de toute sa sous-arborescence de manière récursive. Omettre le paramètre
 affiche tout.
+
+### Ouverture locale dans Bambu Studio
+
+Configurez `T3D_SMB_ROOT` avec le chemin UNC du partage monté dans `/storage`,
+puis exécutez `helper/install-helper.ps1` sur le PC Windows. Le protocole
+utilisateur `polykeep://` appelle le helper, qui récupère l'information depuis
+le NAS et ouvre directement le fichier sur le partage SMB.
 
 ---
 

@@ -455,6 +455,22 @@ button.crumb:hover {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: relative;
+}
+
+.open-studio-icon {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 4px 7px;
+  opacity: 0;
+  background: rgba(26, 27, 35, 0.9);
+  color: var(--accent);
+}
+
+.card:hover .open-studio-icon,
+.open-studio-icon:focus-visible {
+  opacity: 1;
 }
 
 .card .thumb img {

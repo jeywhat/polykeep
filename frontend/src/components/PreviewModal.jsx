@@ -11,6 +11,7 @@ const THUMBNAIL_FORMATS = ["lys"];
 export default function PreviewModal({ file, onClose, onMutate, notify }) {
   const [moveTarget, setMoveTarget] = useState("");
   const [modelInfo, setModelInfo] = useState(null);
+  const [opening, setOpening] = useState(false);
   const isViewable3D = VIEWABLE_3D.includes(file.ext);
   const hasThumbnail = THUMBNAIL_FORMATS.includes(file.ext) && file.preview_url;
   const displayName = file.display_name || humanize_name(file.name, file.tags, file.ext);
@@ -40,6 +41,25 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
       onClose();
     } catch (e) {
       notify(e.message, "error");
+    }
+  }
+
+  async function handleOpen() {
+    if (["deleted", "missing"].includes(file.status)) return;
+    setOpening(true);
+    try {
+      const info = await api.openInStudio(file.id);
+      if (!info.smb_unc_path) {
+        notify("Chemin SMB non configuré côté NAS (T3D_SMB_ROOT).", "info");
+        return;
+      }
+      localStorage.setItem("polykeep-helper-hint-seen", "1");
+      notify("Si rien ne s'ouvre, lancez install-helper.ps1 sur votre PC.", "info");
+      window.location.href = `polykeep://open?id=${file.id}&host=${encodeURIComponent(window.location.origin)}`;
+    } catch (e) {
+      notify(e.message, "error");
+    } finally {
+      setOpening(false);
     }
   }
 
@@ -124,6 +144,15 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
                 </div>
               </div>
             )}
+
+            <button
+              className="primary"
+              style={{ width: "100%", marginTop: 14 }}
+              onClick={handleOpen}
+              disabled={opening || ["deleted", "missing"].includes(file.status)}
+            >
+              {opening ? "Ouverture…" : "↗ Ouvrir dans Bambu Studio"}
+            </button>
 
             <div style={{ marginTop: 20, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
               <div className="info-label" style={{ marginBottom: 6 }}>Déplacer vers</div>

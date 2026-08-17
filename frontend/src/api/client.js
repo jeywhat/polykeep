@@ -40,6 +40,8 @@ export const api = {
 
   getFile: (id) => request(`/files/${id}`),
 
+  openInStudio: (id) => request(`/files/${id}/open-info`),
+
   listFolders: () => request(`/folders`),
 
   moveFile: (id, targetDir) =>

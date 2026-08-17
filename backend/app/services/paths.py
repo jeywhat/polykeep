@@ -15,19 +15,20 @@ class UnsafePathError(ValueError):
     """Raised when a resolved path escapes the storage root."""
 
 
-def storage_root() -> Path:
+def storage_root(*, ensure_exists: bool = True) -> Path:
     root = settings.storage_dir.resolve()
-    root.mkdir(parents=True, exist_ok=True)
+    if ensure_exists:
+        root.mkdir(parents=True, exist_ok=True)
     return root
 
 
-def safe_join(*parts: str) -> Path:
+def safe_join(*parts: str, ensure_root: bool = True) -> Path:
     """Join ``parts`` onto the storage root and assert the result stays inside.
 
     Accepts relative POSIX paths (forward slashes). Returns an absolute Path.
     Raises ``UnsafePathError`` if the target resolves outside /storage.
     """
-    root = storage_root()
+    root = storage_root(ensure_exists=ensure_root)
     combined = Path(*parts) if parts else Path()
     # Re-anchor any absolute-looking input to the root.
     target = (root / combined).resolve()
