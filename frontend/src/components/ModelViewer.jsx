@@ -160,9 +160,9 @@ function Model({ url, onReady, format }) {
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial
-        color="#ff8c2a"
-        metalness={0.15}
-        roughness={0.6}
+        color="#c8cdd6"
+        metalness={0}
+        roughness={0.8}
         flatShading={false}
       />
     </mesh>
@@ -203,9 +203,11 @@ export default function ModelViewer({ url, onLoaded, format }) {
 
   return (
     <Canvas camera={{ position: [6, 5, 8], fov: 45 }} style={{ background: "var(--bg)" }}>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 10, 5]} intensity={1.2} />
-      <directionalLight position={[-8, -5, -8]} intensity={0.4} color="#4aa8ff" />
+      {/* Studio lighting: broad fill light keeps recessed details readable. */}
+      <ambientLight intensity={0.9} />
+      <hemisphereLight args={["#ffffff", "#8b919d", 1.1]} />
+      <directionalLight position={[6, 8, 10]} intensity={0.65} />
+      <directionalLight position={[-7, 3, -8]} intensity={0.45} color="#dce7ff" />
       <Suspense fallback={null}>
         <Model url={url} onReady={handleReady} format={format} />
       </Suspense>
