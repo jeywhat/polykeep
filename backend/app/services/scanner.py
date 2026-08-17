@@ -13,7 +13,9 @@ Optimizations:
 from __future__ import annotations
 
 import datetime as dt
+import gc
 import os
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -30,14 +32,20 @@ from .lys_parser import extract_thumbnail
 from .mesh_renderer import can_render, render_mesh
 from .paths import storage_root
 from .scan_progress import (
+    ScanStoppedError,
     ScanPhase,
     complete_scan,
+    checkpoint,
     error_scan,
+    stop_scan,
     start_scan,
     update_file_progress,
     update_phase,
 )
 from .tagger import extract_tags
+
+
+_MESH_TASK_LIMIT = threading.Semaphore(2)
 
 # Skip these directories during the scan (trash, hidden dirs).
 _SKIP_DIRS = {".trash", "$RECYCLE.BIN", "System Volume Information", "__pycache__"}
@@ -223,11 +231,19 @@ def _thumbnail_exists(file_obj: File) -> bool:
 
 def _needs_extra_work(file_obj: File) -> bool:
     needs_hash = file_obj.ext == "stl" and not file_obj.hash
-    needs_fingerprint = can_render(file_obj.ext) and not file_obj.fingerprint
+    needs_fingerprint = _fingerprint_allowed(file_obj) and can_render(file_obj.ext) and not file_obj.fingerprint
     needs_thumbnail = (
         file_obj.ext == "lys" or can_render(file_obj.ext)
     ) and not _thumbnail_exists(file_obj)
     return needs_hash or needs_fingerprint or needs_thumbnail
+
+
+def _thumbnail_allowed(file_obj: File) -> bool:
+    return file_obj.size <= settings.thumbnail_max_size_mb * 1024 * 1024
+
+
+def _fingerprint_allowed(file_obj: File) -> bool:
+    return file_obj.size <= settings.fingerprint_max_size_mb * 1024 * 1024
 
 
 def scan_storage(
@@ -306,6 +322,7 @@ def scan_storage(
         now_utc = dt.datetime.now(dt.timezone.utc)
 
         for i, info in enumerate(file_infos):
+            checkpoint(scan_id)
             update_file_progress(scan_id, i + 1, total_files, info.rel_path)
             found_rel.add(info.rel_path)
             existing = existing_files.get(info.rel_path)
@@ -381,6 +398,7 @@ def scan_storage(
         ).all()
         missing_ids = [file_id for file_id, rel_path in missing_rows if rel_path not in found_rel]
         for offset in range(0, len(missing_ids), _SQL_BATCH_SIZE):
+            checkpoint(scan_id)
             session.query(File).filter(
                 File.id.in_(missing_ids[offset : offset + _SQL_BATCH_SIZE])
             ).update({"status": "missing"}, synchronize_session=False)
@@ -424,6 +442,16 @@ def scan_storage(
         if finalize:
             complete_scan(scan_id)
 
+    except ScanStoppedError:
+        session.rollback()
+        stop_scan(scan_id)
+        return {
+            "scanned": scanned,
+            "added": added,
+            "updated": updated,
+            "missing": missing,
+            "duration_ms": int((time.perf_counter() - start) * 1000),
+        }
     except Exception as e:
         session.rollback()
         error_scan(scan_id, str(e))
@@ -446,8 +474,12 @@ def _make_extra_task(file_obj: File, path: Path, force: bool = False) -> _ExtraT
         path=path,
         ext=file_obj.ext,
         compute_hash=file_obj.ext == "stl" and (force or not file_obj.hash),
-        compute_fingerprint=can_render(file_obj.ext) and (force or not file_obj.fingerprint),
-        compute_thumbnail=force or not _thumbnail_exists(file_obj),
+        compute_fingerprint=(
+            _fingerprint_allowed(file_obj)
+            and can_render(file_obj.ext)
+            and (force or not file_obj.fingerprint)
+        ),
+        compute_thumbnail=_thumbnail_allowed(file_obj) and (force or not _thumbnail_exists(file_obj)),
     )
 
 
@@ -478,20 +510,36 @@ def _run_extra_tasks(tasks: list[_ExtraTask], scan_id: str = "default") -> list[
         results = []
         for i, task in enumerate(tasks):
             try:
-                results.append(_index_extras(task))
+                checkpoint(scan_id)
+                with _MESH_TASK_LIMIT:
+                    results.append(_index_extras(task))
+            except ScanStoppedError:
+                raise
             except Exception:  # noqa: BLE001 - one bad file must not kill a scan
                 results.append(_ExtraResult(file_id=task.file_id))
+            finally:
+                gc.collect()
             update_file_progress(scan_id, i + 1, len(tasks), task.path.name)
         return results
 
     results: list[_ExtraResult] = []
     completed = 0
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="scan-extra") as pool:
-        future_map = {pool.submit(_index_extras, task): task for task in tasks}
+        def run_task(task):
+            checkpoint(scan_id)
+            try:
+                with _MESH_TASK_LIMIT:
+                    return _index_extras(task)
+            finally:
+                gc.collect()
+
+        future_map = {pool.submit(run_task, task): task for task in tasks}
         for future in as_completed(future_map):
             task = future_map[future]
             try:
                 results.append(future.result())
+            except ScanStoppedError:
+                raise
             except Exception:  # noqa: BLE001 - one bad file must not kill a scan
                 results.append(_ExtraResult(file_id=task.file_id))
             completed += 1

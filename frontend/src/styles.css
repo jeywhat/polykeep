@@ -869,6 +869,17 @@ button.crumb:hover {
   margin-top: 4px;
 }
 
+.scan-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.scan-actions button {
+  padding: 4px 9px;
+  font-size: 11px;
+}
+
 .toast {
   position: fixed;
   bottom: 20px;

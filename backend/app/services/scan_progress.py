@@ -20,10 +20,15 @@ class ScanPhase(str, Enum):
     SUGGESTIONS = "suggestions"      # Phase 6: recompute sort suggestions
     COMPLETE = "complete"
     ERROR = "error"
+    STOPPED = "stopped"
 
 
 class ScanInProgressError(RuntimeError):
     """Raised when a scan is already running in this application process."""
+
+
+class ScanStoppedError(RuntimeError):
+    """Raised internally when a user requests a cooperative scan stop."""
 
 
 @dataclass
@@ -36,6 +41,7 @@ class ScanProgress:
     current_file: str = ""
     start_time: float = 0.0
     error_message: Optional[str] = None
+    paused: bool = False
 
     @property
     def overall_progress(self) -> float:
@@ -50,6 +56,7 @@ class ScanProgress:
             ScanPhase.SUGGESTIONS: (95.0, 100.0),
             ScanPhase.COMPLETE: (100.0, 100.0),
             ScanPhase.ERROR: (0.0, 0.0),
+            ScanPhase.STOPPED: (0.0, 0.0),
         }
         start, end = phase_bounds.get(self.phase, (0.0, 0.0))
         return start + (end - start) * self.phase_progress / 100.0
@@ -71,6 +78,8 @@ _progress_store: dict[str, ScanProgress] = {}
 _lock = threading.Lock()
 _scan_lock = threading.Lock()
 _active_scan_id: str | None = None
+_pause_events: dict[str, threading.Event] = {}
+_stop_events: dict[str, threading.Event] = {}
 
 
 def get_progress(scan_id: str = "default") -> ScanProgress:
@@ -95,7 +104,74 @@ def start_scan(scan_id: str = "default") -> ScanProgress:
         )
         _progress_store[scan_id] = prog
         _active_scan_id = scan_id
+        _pause_events[scan_id] = threading.Event()
+        _pause_events[scan_id].set()
+        _stop_events[scan_id] = threading.Event()
         return prog
+
+
+def checkpoint(scan_id: str = "default") -> None:
+    """Block while paused and raise promptly when the scan is stopped."""
+    with _lock:
+        pause_event = _pause_events.get(scan_id)
+        stop_event = _stop_events.get(scan_id)
+    if stop_event and stop_event.is_set():
+        raise ScanStoppedError("Scan arrêté par l'utilisateur")
+    if pause_event:
+        while not pause_event.wait(timeout=0.25):
+            if stop_event and stop_event.is_set():
+                raise ScanStoppedError("Scan arrêté par l'utilisateur")
+
+
+def pause_scan(scan_id: str = "default") -> None:
+    with _lock:
+        event = _pause_events.get(scan_id)
+        prog = _progress_store.get(scan_id)
+        if event and prog:
+            event.clear()
+            prog.paused = True
+
+
+def resume_scan(scan_id: str = "default") -> None:
+    with _lock:
+        event = _pause_events.get(scan_id)
+        prog = _progress_store.get(scan_id)
+        if event and prog:
+            event.set()
+            prog.paused = False
+
+
+def stop_scan(scan_id: str = "default") -> None:
+    global _active_scan_id
+    release_lock = False
+    with _lock:
+        stop_event = _stop_events.get(scan_id)
+        pause_event = _pause_events.get(scan_id)
+        prog = _progress_store.get(scan_id)
+        if stop_event:
+            stop_event.set()
+        if pause_event:
+            pause_event.set()
+        if prog:
+            prog.phase = ScanPhase.STOPPED
+            prog.paused = False
+            prog.error_message = "Scan arrêté par l'utilisateur"
+        if _active_scan_id == scan_id:
+            _active_scan_id = None
+            release_lock = True
+    if release_lock:
+        _scan_lock.release()
+
+
+def request_stop(scan_id: str = "default") -> None:
+    """Request a stop without releasing the scan lock prematurely."""
+    with _lock:
+        stop_event = _stop_events.get(scan_id)
+        pause_event = _pause_events.get(scan_id)
+        if stop_event:
+            stop_event.set()
+        if pause_event:
+            pause_event.set()
 
 
 def update_phase(scan_id: str, phase: ScanPhase, progress: float = 0.0, **kwargs) -> None:
@@ -131,6 +207,7 @@ def complete_scan(scan_id: str = "default") -> None:
         prog = _progress_store.get(scan_id)
         if prog:
             prog.phase = ScanPhase.COMPLETE
+            prog.paused = False
             prog.phase_progress = 100.0
             prog.phase_total_files = prog.total_files
             prog.processed_files = prog.total_files
@@ -150,6 +227,7 @@ def error_scan(scan_id: str, error: str) -> None:
         prog = _progress_store.get(scan_id)
         if prog:
             prog.phase = ScanPhase.ERROR
+            prog.paused = False
             prog.error_message = error
         if _active_scan_id == scan_id:
             _active_scan_id = None

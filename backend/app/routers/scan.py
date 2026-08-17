@@ -12,8 +12,14 @@ from ..services import scanner, sorter
 from ..services.scan_progress import (
     ScanInProgressError,
     ScanPhase,
+    ScanStoppedError,
     complete_scan,
+    checkpoint,
     get_progress,
+    pause_scan,
+    request_stop,
+    resume_scan,
+    stop_scan,
     update_phase,
 )
 
@@ -32,16 +38,24 @@ def trigger_scan(db: Session = Depends(get_db)):
         except ScanInProgressError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+        if get_progress().phase == ScanPhase.STOPPED:
+            return result
+
         # Recompute suggestions while the scan lock is still held.
+        checkpoint()
         update_phase("default", ScanPhase.SUGGESTIONS, 0, phase_total_files=0)
         try:
             sorter.compute_suggestions(db)
+            checkpoint()
         except Exception as exc:  # noqa: BLE001
             # Suggestions are best-effort; never fail the whole scan for them.
             result["suggestions_error"] = str(exc)
         update_phase("default", ScanPhase.SUGGESTIONS, 100)
         complete_scan("default")
         return result
+    except ScanStoppedError:
+        stop_scan("default")
+        return {"scanned": 0, "added": 0, "updated": 0, "missing": 0, "duration_ms": 0}
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001
@@ -65,4 +79,23 @@ def scan_progress():
         "elapsed_seconds": round(prog.elapsed_seconds, 1),
         "eta_seconds": round(prog.eta_seconds, 1) if prog.eta_seconds else None,
         "error": prog.error_message,
+        "paused": prog.paused,
     }
+
+
+@router.post("/scan/pause")
+def pause_current_scan():
+    pause_scan()
+    return {"paused": True}
+
+
+@router.post("/scan/resume")
+def resume_current_scan():
+    resume_scan()
+    return {"paused": False}
+
+
+@router.post("/scan/stop")
+def stop_current_scan():
+    request_stop()
+    return {"stopping": True}

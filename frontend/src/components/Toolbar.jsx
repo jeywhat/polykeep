@@ -12,6 +12,7 @@ export default function Toolbar({
   onScan,
   scanning,
   scanProgress,
+  onScanControl,
 }) {
   const showProgress = scanning && scanProgress;
   const phaseLabels = {
@@ -71,7 +72,9 @@ export default function Toolbar({
       {showProgress && (
         <div className="scan-progress">
           <div className="progress-header">
-            <span className="phase-label">{phaseLabels[scanProgress.phase] || scanProgress.phase}</span>
+            <span className="phase-label">
+              {scanProgress.paused ? "En pause" : phaseLabels[scanProgress.phase] || scanProgress.phase}
+            </span>
             <span className="progress-pct">{scanProgress.overall_progress.toFixed(1)}%</span>
           </div>
           <div className="progress-bar">
@@ -93,6 +96,14 @@ export default function Toolbar({
             {scanProgress.eta_seconds && (
               <span>⏳ ~{scanProgress.eta_seconds.toFixed(0)}s</span>
             )}
+          </div>
+          <div className="scan-actions">
+            {scanProgress.paused ? (
+              <button onClick={() => onScanControl("resume")}>▶ Reprendre</button>
+            ) : (
+              <button onClick={() => onScanControl("pause")}>Ⅱ Pause</button>
+            )}
+            <button className="danger" onClick={() => onScanControl("stop")}>■ Arrêter</button>
           </div>
           {scanProgress.error && (
             <div className="progress-error">Erreur: {scanProgress.error}</div>

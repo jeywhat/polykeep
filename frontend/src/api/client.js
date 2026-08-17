@@ -28,6 +28,9 @@ export const api = {
   health: () => request("/health"),
 
   scan: () => request("/scan", { method: "POST" }),
+  pauseScan: () => request("/scan/pause", { method: "POST" }),
+  resumeScan: () => request("/scan/resume", { method: "POST" }),
+  stopScan: () => request("/scan/stop", { method: "POST" }),
 
   listFiles: (params = {}) => {
     const qs = new URLSearchParams();

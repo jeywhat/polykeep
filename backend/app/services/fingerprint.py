@@ -21,7 +21,9 @@ def _load_mesh(path: Path):
 
     # Let trimesh weld duplicate vertices so binary STL and OBJ exports of the
     # same model produce the same connected-component count.
-    loaded = trimesh.load(str(path), force="scene", process=True)
+    # Loading directly as one mesh avoids retaining a Scene plus a concatenated
+    # copy at the same time.
+    loaded = trimesh.load(str(path), force="mesh", process=True)
     if isinstance(loaded, trimesh.Trimesh):
         return loaded
     if not isinstance(loaded, trimesh.Scene):

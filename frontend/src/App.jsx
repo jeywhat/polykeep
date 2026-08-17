@@ -96,7 +96,7 @@ export default function App() {
           const prog = await api.scanProgress();
           if (cancelled) return;
           setScanProgress(prog);
-          if (!scanOwner.current && (prog.phase === "complete" || prog.phase === "error")) {
+           if (!scanOwner.current && ["complete", "error", "stopped"].includes(prog.phase)) {
             setScanning(false);
             return;
           }
@@ -162,6 +162,16 @@ export default function App() {
     } finally {
       scanOwner.current = false;
       setScanning(false);
+    }
+  }
+
+  async function handleScanControl(action) {
+    try {
+      if (action === "pause") await api.pauseScan();
+      else if (action === "resume") await api.resumeScan();
+      else await api.stopScan();
+    } catch (e) {
+      notify(e.message, "error");
     }
   }
 
@@ -254,9 +264,10 @@ export default function App() {
             setActiveTag={setActiveTag}
             total={total}
             onScan={handleScan}
-            scanning={scanning}
-            scanProgress={scanProgress}
-          />
+             scanning={scanning}
+             scanProgress={scanProgress}
+             onScanControl={handleScanControl}
+           />
           <FileGrid
             files={files}
             folder={folder}

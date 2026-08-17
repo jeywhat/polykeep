@@ -17,8 +17,8 @@ import numpy as np
 
 # Final thumbnail resolution (square).
 _IMG_SIZE = 256
-# Render at 2x then downscale for crisper edges / anti-aliasing.
-_RENDER_SCALE = 2
+# Keep scan-time memory bounded; the source viewer provides detailed inspection.
+_RENDER_SCALE = 1
 # Target fill ratio of the object within the final frame (0-1).
 _FILL = 0.9
 # Isometric-ish viewing angle.
@@ -193,7 +193,8 @@ def render_mesh(path: Path, out_path: Path) -> bool:
     vertices = _prepare_vertices(mesh)
     if len(vertices) == 0:
         return False
-    faces = mesh.faces
+    faces = mesh.faces.copy()
+    del mesh
     # pyplot uses process-global state and is not safe across scan workers.
     with _RENDER_LOCK:
         return _render_mesh(vertices, faces, out_path)

@@ -21,6 +21,8 @@ services:
       # - T3D_SMB_ROOT=\\\\192.168.1.50\\3d\\storage
       # - T3D_BASE_URL=http://192.168.1.50:8000
       # - T3D_OPEN_MODE=smb
+      # - T3D_THUMBNAIL_MAX_SIZE_MB=5
+      # - T3D_FINGERPRINT_MAX_SIZE_MB=100
       # - T3D_SCAN_WORKERS=0  # 0=auto, 1=sequential, >1=fixed worker count
       # - T3D_SORTED_SUBDIR=Trié
       # - T3D_ARCHIVED_SUBDIR=Archivé
