@@ -196,6 +196,10 @@ function CameraRig({ radius }) {
 export default function ModelViewer({ url, onLoaded, format }) {
   const [info, setInfo] = useState(null);
 
+  useEffect(() => {
+    setInfo(null);
+  }, [url, format]);
+
   const handleReady = (d) => {
     setInfo(d);
     onLoaded?.(d);
@@ -209,7 +213,7 @@ export default function ModelViewer({ url, onLoaded, format }) {
       <directionalLight position={[6, 8, 10]} intensity={0.65} />
       <directionalLight position={[-7, 3, -8]} intensity={0.45} color="#dce7ff" />
       <Suspense fallback={null}>
-        <Model url={url} onReady={handleReady} format={format} />
+        <Model key={`${url}:${format || ""}`} url={url} onReady={handleReady} format={format} />
       </Suspense>
       <CameraRig radius={info?.radius} />
       <OrbitControls makeDefault enableDamping dampingFactor={0.1} />

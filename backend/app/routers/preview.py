@@ -14,6 +14,36 @@ from ..services.paths import safe_join
 router = APIRouter()
 
 
+def _thumbnail_path(file_obj: File):
+    """Return only this file's canonical, non-empty thumbnail."""
+    expected = f"{file_obj.id}.png"
+    if file_obj.thumbnail_path != expected:
+        return None
+    thumbnail = settings.thumbnail_dir / expected
+    try:
+        return thumbnail if thumbnail.is_file() and thumbnail.stat().st_size > 0 else None
+    except OSError:
+        return None
+
+
+def _thumbnail_media_type(path) -> str:
+    """Detect common embedded image formats even when the cache is named .png."""
+    try:
+        with path.open("rb") as image:
+            header = image.read(12)
+    except OSError:
+        header = b""
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if header.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        return "image/webp"
+    if header.startswith(b"BM"):
+        return "image/bmp"
+    return "image/png"
+
+
 @router.get("/preview/stl/{file_id}")
 def stream_stl(file_id: int, db: Session = Depends(get_db)):
     """Stream the raw STL so the browser can parse it with Three.js."""
@@ -24,7 +54,12 @@ def stream_stl(file_id: int, db: Session = Depends(get_db)):
     if not path.is_file():
         raise HTTPException(status_code=410, detail="Fichier absent du disque")
     media = "model/stl" if f.ext == "stl" else "application/octet-stream"
-    return FileResponse(path, media_type=media, filename=f.name)
+    return FileResponse(
+        path,
+        media_type=media,
+        filename=f.name,
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 
 @router.get("/preview/model/{file_id}")
@@ -49,7 +84,12 @@ def stream_model(file_id: int, db: Session = Depends(get_db)):
         "3mf": "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
     }
     media = mime_map.get(f.ext, "application/octet-stream")
-    return FileResponse(path, media_type=media, filename=f.name)
+    return FileResponse(
+        path,
+        media_type=media,
+        filename=f.name,
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 
 @router.get("/preview/glb/{file_id}")
@@ -75,15 +115,14 @@ def serve_lys_thumbnail(file_id: int, db: Session = Depends(get_db)):
     f = db.get(File, file_id)
     if f is None:
         raise HTTPException(status_code=404, detail="Fichier introuvable")
-    if not f.thumbnail_path:
+    thumb = _thumbnail_path(f)
+    if thumb is None:
         raise HTTPException(status_code=404, detail="Aucune vignette pour ce .lys")
-    from ..config import settings
-
-    thumb = settings.thumbnail_dir / f.thumbnail_path
-    if not thumb.is_file():
-        raise HTTPException(status_code=404, detail="Vignette manquante sur disque")
-    media = "image/png" if thumb.suffix.lower() == ".png" else "image/jpeg"
-    return FileResponse(thumb, media_type=media)
+    return FileResponse(
+        thumb,
+        media_type=_thumbnail_media_type(thumb),
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @router.get("/preview/thumb/{file_id}")
@@ -92,12 +131,11 @@ def serve_thumbnail(file_id: int, db: Session = Depends(get_db)):
     f = db.get(File, file_id)
     if f is None:
         raise HTTPException(status_code=404, detail="Fichier introuvable")
-    if not f.thumbnail_path:
+    thumb = _thumbnail_path(f)
+    if thumb is None:
         raise HTTPException(status_code=404, detail="Aucune vignette pour ce fichier")
-    from ..config import settings
-
-    thumb = settings.thumbnail_dir / f.thumbnail_path
-    if not thumb.is_file():
-        raise HTTPException(status_code=404, detail="Vignette manquante sur disque")
-    media = "image/png" if thumb.suffix.lower() == ".png" else "image/jpeg"
-    return FileResponse(thumb, media_type=media)
+    return FileResponse(
+        thumb,
+        media_type=_thumbnail_media_type(thumb),
+        headers={"Cache-Control": "no-cache"},
+    )

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # names are considered "related"
     scan_workers: int = 0  # 0 = auto, 1 = sequential, >1 = parallel extras
     # Avoid expensive CPU rendering during scans; the source remains previewable.
-    thumbnail_max_size_mb: int = 1
+    thumbnail_max_size_mb: int = 10
     # Trimesh can require several times the source size while parsing.
     fingerprint_max_size_mb: int = 5
     # Mesh parsing is the memory-heavy part of a scan. Keep it serialized by default.

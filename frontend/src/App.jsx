@@ -298,10 +298,12 @@ export default function App() {
       {selected && (
         <PreviewModal
           file={selected}
-          onClose={() => setSelected(null)}
+          onClose={(fileId) => {
+            setSelected((s) => (!fileId || s?.id === fileId ? null : s));
+          }}
           onMutate={(updated) => {
             handleMutate(updated);
-            setSelected((s) => ({ ...s, ...updated }));
+            setSelected((s) => (s?.id === updated.id ? { ...s, ...updated } : s));
           }}
           notify={notify}
         />

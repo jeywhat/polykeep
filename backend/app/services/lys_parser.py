@@ -43,7 +43,12 @@ def extract_thumbnail(lys_path: Path, out_path: Path) -> bool:
             candidates.sort(key=lambda c: c[0], reverse=True)
             best = candidates[0][1]
             data = zf.read(best)
-            out_path.write_bytes(data)
+            temporary = out_path.with_name(f".{out_path.name}.tmp")
+            try:
+                temporary.write_bytes(data)
+                temporary.replace(out_path)
+            finally:
+                temporary.unlink(missing_ok=True)
             return True
     except (zipfile.BadZipFile, OSError, KeyError):
         return False

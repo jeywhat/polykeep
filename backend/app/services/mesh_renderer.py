@@ -26,6 +26,9 @@ _ELEV, _AZIM = 20.0, 45.0
 _RENDER_LOCK = threading.Lock()
 _GLB_LOCK = threading.Lock()
 _LOGGER = logging.getLogger(__name__)
+# Log at most a few mesh-load failures: a library can contain thousands of
+# unreadable files and per-file warning spam would slow the scan to a crawl.
+_LOAD_FAILURES = {"count": 0}
 
 
 def _load_mesh(path: Path) -> Optional["trimesh.Trimesh"]:
@@ -44,8 +47,11 @@ def _load_mesh(path: Path) -> Optional["trimesh.Trimesh"]:
         if not isinstance(mesh, trimesh.Trimesh) or len(mesh.faces) == 0:
             return None
         return mesh
-    except Exception as exc:
-        _LOGGER.warning("Unable to load mesh %s: %s", path, exc)
+    except Exception as exc:  # noqa: BLE001 - one bad file must not kill a scan
+        _LOAD_FAILURES["count"] += 1
+        n = _LOAD_FAILURES["count"]
+        if n <= 5 or n % 1000 == 0:
+            _LOGGER.warning("Unable to load mesh %s: %s (failure #%d)", path, exc, n)
         return None
 
 
@@ -167,34 +173,51 @@ def _write_png(rgba: np.ndarray, out_path: Path) -> bool:
     import matplotlib.pyplot as plt
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = out_path.with_name(f".{out_path.name}.{threading.get_ident()}.tmp")
     fig = plt.figure(figsize=(rgba.shape[1] / 100, rgba.shape[0] / 100), dpi=100)
     try:
         ax = fig.add_axes([0, 0, 1, 1])
         ax.imshow(rgba, interpolation="bilinear")
         ax.set_axis_off()
         fig.savefig(
-            str(out_path),
+            str(temporary),
+            format="png",
             transparent=True,
             bbox_inches="tight",
             pad_inches=0,
         )
+        temporary.replace(out_path)
     finally:
         plt.close(fig)
-    return out_path.is_file()
+        temporary.unlink(missing_ok=True)
+    return out_path.is_file() and out_path.stat().st_size > 0
 
 
 # Public API ---------------------------------------------------------------
 
+def load_mesh(path: Path):
+    """Load any supported mesh as a single Trimesh object (or None on failure)."""
+    return _load_mesh(path)
+
+
 def render_mesh(path: Path, out_path: Path) -> bool:
     """Render any trimesh-supported mesh to a centred PNG thumbnail."""
-    mesh = _load_mesh(path)
+    mesh = load_mesh(path)
     if mesh is None:
         return False
+    return render_mesh_mesh(mesh, out_path)
+
+
+def render_mesh_mesh(mesh, out_path: Path) -> bool:
+    """Render an already-loaded mesh to a centred PNG thumbnail.
+
+    Copies geometry to compact float32/int32 arrays for matplotlib. The
+    caller owns the mesh reference and should release it once this returns.
+    """
     vertices = _prepare_vertices(mesh)
     if len(vertices) == 0:
         return False
-    faces = mesh.faces.copy()
-    del mesh
+    faces = mesh.faces.copy().astype(np.int32)
     # pyplot uses process-global state and is not safe across scan workers.
     with _RENDER_LOCK:
         return _render_mesh(vertices, faces, out_path)

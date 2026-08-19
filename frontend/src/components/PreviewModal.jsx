@@ -15,8 +15,13 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
   const isViewable3D = VIEWABLE_3D.includes(file.ext);
   const hasThumbnail = THUMBNAIL_FORMATS.includes(file.ext) && file.preview_url;
   const displayName = file.display_name || humanize_name(file.name, file.tags, file.ext);
+  const modelVersion = `${file.scanned_at || ""}:${file.size || 0}:${file.hash || ""}`;
 
-  useEffect(() => { setModelInfo(null); }, [file.id]);
+  function closeModal() {
+    onClose?.(file.id);
+  }
+
+  useEffect(() => { setModelInfo(null); }, [file.id, modelVersion, file.ext]);
 
   if (!file) return null;
 
@@ -40,7 +45,7 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
       const updated = await api.deleteFile(file.id);
       notify("Fichier mis à la corbeille.", "success");
       onMutate(updated);
-      onClose();
+      closeModal();
     } catch (e) {
       notify(e.message, "error");
     }
@@ -66,19 +71,24 @@ export default function PreviewModal({ file, onClose, onMutate, notify }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={closeModal}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 title={file.name}>{displayName}</h2>
-          <button onClick={onClose}>✕ Fermer</button>
+          <button onClick={closeModal}>✕ Fermer</button>
         </div>
         <div className="modal-body">
           <div className="viewer">
             {isViewable3D ? (
-              <ModelViewer url={api.modelUrl(file.id)} onLoaded={setModelInfo} format={file.ext} />
+              <ModelViewer
+                key={`${file.id}:${modelVersion}:${file.ext}`}
+                url={api.modelUrl(file.id, modelVersion)}
+                onLoaded={setModelInfo}
+                format={file.ext}
+              />
             ) : hasThumbnail ? (
               <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <img src={api.thumbUrl(file.id)} alt={displayName} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                <img src={file.preview_url} alt={displayName} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
               </div>
             ) : (
               <div className="empty">

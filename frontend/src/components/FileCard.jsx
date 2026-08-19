@@ -79,7 +79,7 @@ export default function FileCard({ file, folder, onClick, onDragStart, onDragEnd
     >
       <div className="thumb">
         {file.preview_url ? (
-          <img src={api.thumbUrl(file.id)} alt={displayName} />
+          <img src={file.preview_url} alt={displayName} />
         ) : (
           <span className="ext-badge" style={{ color: extColor }}>
             {file.ext.toUpperCase()}

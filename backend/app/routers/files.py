@@ -1,6 +1,9 @@
 """Files router — list / detail / move / delete / tag."""
 from __future__ import annotations
 
+from pathlib import Path
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -17,13 +20,28 @@ from ..services.sorter import move_file, move_to_trash
 router = APIRouter()
 
 
+def _has_canonical_thumbnail(file_obj: File) -> bool:
+    expected = f"{file_obj.id}.png"
+    if file_obj.thumbnail_path != expected:
+        return False
+    try:
+        thumbnail = settings.thumbnail_dir / Path(expected)
+        return thumbnail.is_file() and thumbnail.stat().st_size > 0
+    except OSError:
+        return False
+
+
 def _file_to_out(f: File) -> FileOut:
     out = FileOut.model_validate(f)
     out.tags = [ft.tag.name for ft in f.tags if ft.tag]
     out.display_name = humanize_name(f.name, out.tags, f.ext)
     # Thumbnail URL (works for both rendered STL and extracted LYS images).
-    if f.thumbnail_path:
-        out.preview_url = f"/api/preview/thumb/{f.id}"
+    if _has_canonical_thumbnail(f):
+        version = quote(
+            f.scanned_at.isoformat() if f.scanned_at else f.thumbnail_path,
+            safe="",
+        )
+        out.preview_url = f"/api/preview/thumb/{f.id}?v={version}"
     return out
 
 

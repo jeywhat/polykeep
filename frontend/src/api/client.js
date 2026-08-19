@@ -75,8 +75,10 @@ export const api = {
 
   // Preview URLs
   stlUrl: (id) => `${BASE}/preview/stl/${id}`,
-  modelUrl: (id) => `${BASE}/preview/model/${id}`,
-  glbUrl: (id) => `${BASE}/preview/glb/${id}`,
+  modelUrl: (id, version) =>
+    `${BASE}/preview/model/${id}${version ? `?v=${encodeURIComponent(version)}` : ""}`,
+  glbUrl: (id, version) =>
+    `${BASE}/preview/glb/${id}${version ? `?v=${encodeURIComponent(version)}` : ""}`,
   // Generic thumbnail (rendered STL PNG or extracted LYS image).
   thumbUrl: (id) => `${BASE}/preview/thumb/${id}`,
   lysThumbUrl: (id) => `${BASE}/preview/lys/${id}`,
